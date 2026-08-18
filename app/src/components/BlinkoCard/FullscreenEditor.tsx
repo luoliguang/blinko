@@ -19,9 +19,10 @@ interface FullscreenEditorProps {
   blinkoItem: BlinkoItem;
   isOpen: boolean;
   onClose: () => void;
+  isReadOnly?: boolean;
 }
 
-export const FullscreenEditor = observer(({ blinkoItem, isOpen, onClose }: FullscreenEditorProps) => {
+export const FullscreenEditor = observer(({ blinkoItem, isOpen, onClose, isReadOnly }: FullscreenEditorProps) => {
   const isPc = useMediaQuery('(min-width: 768px)');
   const blinko = RootStore.Get(BlinkoStore);
   const { t } = useTranslation();
@@ -38,6 +39,7 @@ export const FullscreenEditor = observer(({ blinkoItem, isOpen, onClose }: Fulls
 
   // Switch to edit mode
   const handleSwitchToEdit = () => {
+    if (isReadOnly) return; // view-only shared notes stay in preview
     setEditorMode('edit');
   };
 
@@ -206,6 +208,7 @@ export const FullscreenEditor = observer(({ blinkoItem, isOpen, onClose }: Fulls
               </Button>
               <div className="flex-1 flex justify-end ml-2 gap-2">
                 {editorMode === 'preview' ? (
+                  isReadOnly ? null : (
                   <Tooltip content={t('edit')}>
                     <Button
                       isIconOnly
@@ -217,6 +220,7 @@ export const FullscreenEditor = observer(({ blinkoItem, isOpen, onClose }: Fulls
                       <Icon icon="tabler:edit" width={20} height={20} />
                     </Button>
                   </Tooltip>
+                  )
                 ) : (
                   <Tooltip content={t('preview')}>
                     <Button
@@ -287,6 +291,7 @@ export const FullscreenEditor = observer(({ blinkoItem, isOpen, onClose }: Fulls
               </Button>
               <div className="flex-1 flex justify-end ml-2 gap-2">
                 {editorMode === 'preview' ? (
+                  isReadOnly ? null : (
                   <Tooltip content={t('edit')}>
                     <Button
                       isIconOnly
@@ -298,6 +303,7 @@ export const FullscreenEditor = observer(({ blinkoItem, isOpen, onClose }: Fulls
                       <Icon icon="tabler:edit" width={20} height={20} />
                     </Button>
                   </Tooltip>
+                  )
                 ) : (
                   <Tooltip content={t('preview')}>
                     <Button
