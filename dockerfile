@@ -73,25 +73,27 @@ ENV SHARP_IGNORE_GLOBAL_LIBVIPS=1
 ENV npm_config_sharp_binary_host="https://npmmirror.com/mirrors/sharp"
 ENV npm_config_sharp_libvips_binary_host="https://npmmirror.com/mirrors/sharp-libvips"
 
+# Install system + heavy runtime deps FIRST. This layer does NOT depend on the
+# app source, so it stays cached across code changes — only the small COPY layer
+# below rebuilds when you edit code, so pulls become tens of MB instead of hundreds.
 RUN apk add --no-cache openssl vips-dev python3 py3-setuptools make g++ gcc libc-dev linux-headers && \
     if [ "$USE_MIRROR" = "true" ]; then \
         echo "Using Taobao Mirror to Install Dependencies" && \
         npm config set registry https://registry.npmmirror.com; \
     else \
         echo "Using Default Mirror to Install Dependencies"; \
-    fi
+    fi && \
+    echo "Installing additional dependencies..." && \
+    npm install @node-rs/crc32 lightningcss sharp@0.34.1 prisma@5.21.1 && \
+    npm install -g prisma@5.21.1 && \
+    npm install sqlite3@5.1.7 && \
+    npm install --legacy-peer-deps llamaindex @langchain/community@0.3.40 && \
+    npm install @libsql/client @libsql/core && \
+    rm -rf /tmp/* && \
+    apk del python3 py3-setuptools make g++ gcc libc-dev linux-headers && \
+    rm -rf /var/cache/apk/* /root/.npm /root/.cache
 
-# Copy Build Artifacts and Necessary Files
-COPY --from=builder /app/dist ./server
-COPY --from=builder /app/server/lute.min.js ./server/lute.min.js
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma/client ./node_modules/.prisma/client
-COPY --from=builder /app/start.sh ./
-COPY --from=init-downloader /app/dumb-init /usr/local/bin/dumb-init
-
-RUN chmod +x ./start.sh && \
-    ls -la start.sh
-
+# ARM-specific sharp (prebuilt binaries, also independent of app source)
 RUN if [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then \
         echo "Detected ARM architecture, installing sharp platform-specific dependencies..." && \
         mkdir -p /tmp/sharp-cache && \
@@ -100,19 +102,18 @@ RUN if [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then \
         npm install --force @img/sharp-linux-arm64 --no-save; \
     fi
 
-# Install runtime dependencies; legacy peer deps avoids optional peer conflicts from LangChain.
-RUN echo "Installing additional dependencies..." && \
-    npm install @node-rs/crc32 lightningcss sharp@0.34.1 prisma@5.21.1 && \
-    npm install -g prisma@5.21.1 && \
-    npm install sqlite3@5.1.7 && \
-    npm install --legacy-peer-deps llamaindex @langchain/community@0.3.40 && \
-    npm install @libsql/client @libsql/core && \
-    npx prisma generate && \
-    # find / -type d -name "onnxruntime-*" -exec rm -rf {} + 2>/dev/null || true && \
-    # npm cache clean --force && \
-    rm -rf /tmp/* && \
-    apk del python3 py3-setuptools make g++ gcc libc-dev linux-headers && \
-    rm -rf /var/cache/apk/* /root/.npm /root/.cache
+# Copy Build Artifacts LAST — this is the only thing that changes on a code edit.
+COPY --from=builder /app/dist ./server
+COPY --from=builder /app/server/lute.min.js ./server/lute.min.js
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/node_modules/.prisma/client ./node_modules/.prisma/client
+COPY --from=builder /app/start.sh ./
+COPY --from=init-downloader /app/dumb-init /usr/local/bin/dumb-init
+
+# prisma generate needs the prisma schema copied above, so it runs after COPY.
+RUN chmod +x ./start.sh && \
+    ls -la start.sh && \
+    npx prisma generate
 
 # Expose Port (Adjust According to Actual Application)
 EXPOSE 1111
