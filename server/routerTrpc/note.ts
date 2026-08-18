@@ -99,6 +99,16 @@ export const noteRouter = router({
             isSharedNote: z.boolean().optional(),
             canEdit: z.boolean().optional(),
             isInternalShared: z.boolean().optional(),
+            internalShares: z.array(z.object({
+              accountId: z.number().optional(),
+              canEdit: z.boolean().optional(),
+              account: z.object({
+                id: z.number(),
+                name: z.string(),
+                nickname: z.string(),
+                image: z.string(),
+              }).nullable().optional(),
+            })).optional(),
           }),
         ),
       ),
@@ -244,7 +254,16 @@ export const noteRouter = router({
               histories: true,
             },
           },
-          internalShares: true,
+          account: {
+            select: { id: true, name: true, nickname: true, image: true },
+          },
+          internalShares: {
+            include: {
+              account: {
+                select: { id: true, name: true, nickname: true, image: true },
+              },
+            },
+          },
         },
       });
 
@@ -253,8 +272,9 @@ export const noteRouter = router({
         const myShare = note.internalShares.find((s) => s.accountId === Number(ctx.id));
         return {
           ...note,
+          owner: note.account,               // note author (for recipient's "shared by" view)
           isInternalShared: note.internalShares.length > 0,
-          isSharedNote: !isOwner && !!myShare,
+          isSharedNote: !isOwner,            // this note was shared TO the current user
           // Current user's edit permission: owners always can; shared users only if granted
           canEdit: isOwner || (myShare ? myShare.canEdit : true),
         };
@@ -625,9 +645,25 @@ export const noteRouter = router({
               comments: z.number(),
               histories: z.number(),
             }),
-            isInternalShared: z.boolean().optional(),
+            owner: z.object({
+              id: z.number(),
+              name: z.string(),
+              nickname: z.string(),
+              image: z.string(),
+            }).nullable().optional(),
             isSharedNote: z.boolean().optional(),
+            isInternalShared: z.boolean().optional(),
             canEdit: z.boolean().optional(),
+            internalShares: z.array(z.object({
+              accountId: z.number().optional(),
+              canEdit: z.boolean().optional(),
+              account: z.object({
+                id: z.number(),
+                name: z.string(),
+                nickname: z.string(),
+                image: z.string(),
+              }).nullable().optional(),
+            })).optional(),
           }),
         ),
       ]),
@@ -674,7 +710,16 @@ export const noteRouter = router({
             },
           },
           _count: { select: { comments: true, histories: true } },
-          internalShares: true,
+          account: {
+            select: { id: true, name: true, nickname: true, image: true },
+          },
+          internalShares: {
+            include: {
+              account: {
+                select: { id: true, name: true, nickname: true, image: true },
+              },
+            },
+          },
         },
       });
       if (!note) return null;
@@ -682,8 +727,9 @@ export const noteRouter = router({
       const myShare = note.internalShares.find((s) => s.accountId === Number(ctx.id));
       return {
         ...note,
+        owner: note.account,
         isInternalShared: note.internalShares.length > 0,
-        isSharedNote: !isOwner && !!myShare,
+        isSharedNote: !isOwner,
         // Current user's edit permission: owners always can; shared users only if granted
         canEdit: isOwner || (myShare ? myShare.canEdit : true),
       };

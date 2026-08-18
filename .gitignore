@@ -34,7 +34,7 @@ dev-dist
 target
 server/public
 
-# Local IDE / planning artifacts
+# Local IDE / planning artifacts (not part of the project)
 .vs/
 .cursorrules
 PLANNING.md
