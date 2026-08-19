@@ -274,6 +274,7 @@ export const noteRouter = router({
         // comments in the card preview (same rule as comment.list).
         const visibility = (note.metadata as any)?.commentVisibility ?? 'public';
         let comments = (note as any).comments;
+        let count = (note as any)._count;
         if (visibility === 'private' && !isOwner && Array.isArray(comments)) {
           if (ctx.id) {
             const myId = Number(ctx.id);
@@ -282,10 +283,13 @@ export const noteRouter = router({
             // anonymous can't be reliably matched in the card preview
             comments = [];
           }
+          // Also hide the comment COUNT from non-owners in private mode
+          count = { ...count, comments: comments.length };
         }
         return {
           ...note,
           comments,
+          _count: count,
           owner: note.account,               // note author (for recipient's "shared by" view)
           isInternalShared: note.internalShares.length > 0,
           isSharedNote: !isOwner,            // this note was shared TO the current user

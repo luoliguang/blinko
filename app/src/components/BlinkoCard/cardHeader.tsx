@@ -16,6 +16,8 @@ import { AvatarAccount, CommentButton, UserAvatar } from './commentButton';
 import { HistoryButton } from '../BlinkoNoteHistory/HistoryButton';
 import { api } from '@/lib/trpc';
 import { PromiseCall } from '@/store/standard/PromiseState';
+import { getBlinkoEndpoint } from '@/lib/blinkoEndpoint';
+import { UserStore } from '@/store/user';
 
 interface CardHeaderProps {
   blinkoItem: Note;
@@ -30,6 +32,13 @@ export const CardHeader = observer(({ blinkoItem, blinko, isShareMode, isReadOnl
   const { t } = useTranslation();
   const iconSize = isExpanded ? '20' : '16';
   const isIOSDevice = useIsIOS();
+
+  // Blinko avatar images are relative paths that need the endpoint + auth token
+  const avatarSrc = (image?: string | null) => {
+    if (!image) return undefined;
+    const token = RootStore.Get(UserStore).tokenData.value?.token;
+    return getBlinkoEndpoint(image + (token ? `?token=${token}` : ''));
+  };
 
   const handleTodoToggle = async (e) => {
     e.stopPropagation();
@@ -76,7 +85,7 @@ export const CardHeader = observer(({ blinkoItem, blinko, isShareMode, isReadOnl
               <div className="flex items-center cursor-pointer" onClick={(e) => e.stopPropagation()}>
                 <AvatarGroup max={3} className="[&_span]:w-5 [&_span]:h-5 [&_span]:text-[9px]">
                   {blinkoItem.internalShares!.map((s) => (
-                    <Avatar key={s.accountId} src={s.account?.image || undefined} name={s.account?.nickname || s.account?.name} />
+                    <Avatar key={s.accountId} src={avatarSrc(s.account?.image)} name={s.account?.nickname || s.account?.name} />
                   ))}
                 </AvatarGroup>
               </div>
@@ -86,7 +95,7 @@ export const CardHeader = observer(({ blinkoItem, blinko, isShareMode, isReadOnl
                 <span className="text-tiny opacity-60 px-1">{t('shared-with')} ({blinkoItem.internalShares!.length})</span>
                 {blinkoItem.internalShares!.map((s) => (
                   <div key={s.accountId} className="flex items-center gap-2 px-1">
-                    <Avatar src={s.account?.image || undefined} name={s.account?.nickname || s.account?.name} className="w-6 h-6 text-tiny shrink-0" />
+                    <Avatar src={avatarSrc(s.account?.image)} name={s.account?.nickname || s.account?.name} className="w-6 h-6 text-tiny shrink-0" />
                     <span className="text-xs truncate flex-1">{s.account?.nickname || s.account?.name}</span>
                     {s.canEdit
                       ? <Icon icon="material-symbols:edit-outline" className="text-primary shrink-0" width="14" height="14" />
@@ -102,7 +111,7 @@ export const CardHeader = observer(({ blinkoItem, blinko, isShareMode, isReadOnl
         {blinkoItem.isSharedNote && blinkoItem.owner && (
           <Tooltip content={`${t('shared-by')}: ${blinkoItem.owner.nickname || blinkoItem.owner.name}`} delay={300}>
             <div className="flex items-center gap-1 cursor-pointer">
-              <Avatar src={blinkoItem.owner.image || undefined} name={blinkoItem.owner.nickname || blinkoItem.owner.name} className="w-5 h-5 text-tiny shrink-0" />
+              <Avatar src={avatarSrc(blinkoItem.owner.image)} name={blinkoItem.owner.nickname || blinkoItem.owner.name} className="w-5 h-5 text-tiny shrink-0" />
               <span className={`${isExpanded ? 'text-sm' : 'text-xs'} text-desc truncate max-w-[100px]`}>{blinkoItem.owner.nickname || blinkoItem.owner.name}</span>
             </div>
           </Tooltip>
