@@ -270,8 +270,22 @@ export const noteRouter = router({
       return notes.map((note) => {
         const isOwner = note.accountId === Number(ctx.id);
         const myShare = note.internalShares.find((s) => s.accountId === Number(ctx.id));
+        // Comment visibility: in private mode, non-owners only see their own
+        // comments in the card preview (same rule as comment.list).
+        const visibility = (note.metadata as any)?.commentVisibility ?? 'public';
+        let comments = (note as any).comments;
+        if (visibility === 'private' && !isOwner && Array.isArray(comments)) {
+          if (ctx.id) {
+            const myId = Number(ctx.id);
+            comments = comments.filter((c: any) => c.accountId === myId);
+          } else {
+            // anonymous can't be reliably matched in the card preview
+            comments = [];
+          }
+        }
         return {
           ...note,
+          comments,
           owner: note.account,               // note author (for recipient's "shared by" view)
           isInternalShared: note.internalShares.length > 0,
           isSharedNote: !isOwner,            // this note was shared TO the current user
