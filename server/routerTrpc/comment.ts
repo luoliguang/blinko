@@ -261,18 +261,37 @@ export const commentRouter = router({
         });
       }
 
+      // Comment visibility: 'public' (default) = everyone sees all comments;
+      // 'private' = each visitor only sees their own comment threads, while the
+      // note creator sees everything.
+      const note = await prisma.notes.findFirst({
+        where: { id: noteId },
+        select: { accountId: true, metadata: true }
+      });
+      const visibility = (note?.metadata as any)?.commentVisibility ?? 'public';
+      const isCreator = !!ctx.id && note?.accountId === Number(ctx.id);
+
+      // Base filter: top-level comments of this note
+      const topWhere: any = { noteId, parentId: null };
+      if (visibility === 'private' && !isCreator) {
+        if (ctx.id) {
+          // Logged-in visitor: match by account id
+          topWhere.accountId = Number(ctx.id);
+        } else {
+          // Anonymous visitor: match by IP + browser fingerprint
+          let ua = '';
+          try { ua = JSON.stringify(ctx.userAgent); } catch { }
+          topWhere.guestIP = ctx.ip?.toString();
+          topWhere.guestUA = ua;
+        }
+      }
+
       const [total, comments] = await Promise.all([
         prisma.comments.count({
-          where: {
-            noteId,
-            parentId: null
-          }
+          where: topWhere
         }),
         prisma.comments.findMany({
-          where: {
-            noteId,
-            parentId: null
-          },
+          where: topWhere,
           orderBy: { createdAt: orderBy },
           skip: (page - 1) * size,
           take: size,

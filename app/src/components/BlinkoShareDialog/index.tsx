@@ -46,6 +46,7 @@ export interface ShareSettings {
   isShare?: boolean;
   internalShareUserIds?: number[];
   canEdit?: boolean;
+  commentVisibility?: 'public' | 'private';
 }
 
 interface User {
@@ -88,6 +89,9 @@ export const BlinkoShareDialog = observer(({ defaultSettings }: ShareDialogProps
     selectedUserIds: defaultSettings.internalShareUserIds || [] as number[],
     isLoadingUsers: false,
     canEdit: defaultSettings.canEdit ?? false,
+    commentVisibility: (defaultSettings.commentVisibility
+      ?? (RootStore.Get(BlinkoStore).curSelectedNote?.metadata as any)?.commentVisibility
+      ?? 'public') as 'public' | 'private',
 
     get selectedExpiryValue() {
       if (this.expiryType === "never") return t("permanent-valid");
@@ -139,6 +143,10 @@ export const BlinkoShareDialog = observer(({ defaultSettings }: ShareDialogProps
 
     setCanEdit(value: boolean) {
       this.canEdit = value;
+    },
+
+    setCommentVisibility(value: 'public' | 'private') {
+      this.commentVisibility = value;
     },
 
     handleExpiryChange(type: string) {
@@ -193,6 +201,14 @@ export const BlinkoShareDialog = observer(({ defaultSettings }: ShareDialogProps
         });
         this.setIsShare(true);
       }
+
+      // Persist comment visibility on the note (applies to both share types)
+      await RootStore.Get(BlinkoStore).upsertNote.call({
+        id: RootStore.Get(BlinkoStore).curSelectedNote!.id!,
+        metadata: { commentVisibility: this.commentVisibility },
+        refresh: false,
+        showToast: false,
+      });
     },
 
     async handleCancelShare() {
@@ -474,6 +490,36 @@ export const BlinkoShareDialog = observer(({ defaultSettings }: ShareDialogProps
           )}
         </div>
       )}
+
+      {/* Comment visibility — applies to both public and internal shares */}
+      <div className="mt-4 flex flex-col gap-2">
+        <span className="text-default-700 font-medium text-sm">{t("comment-visibility")}</span>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant={store.commentVisibility === 'public' ? 'solid' : 'flat'}
+            color={store.commentVisibility === 'public' ? 'primary' : 'default'}
+            className="flex-1"
+            startContent={<Icon icon="mdi:earth" width="16" height="16" />}
+            onPress={() => store.setCommentVisibility('public')}
+          >
+            {t("comment-public")}
+          </Button>
+          <Button
+            size="sm"
+            variant={store.commentVisibility === 'private' ? 'solid' : 'flat'}
+            color={store.commentVisibility === 'private' ? 'primary' : 'default'}
+            className="flex-1"
+            startContent={<Icon icon="mdi:lock-outline" width="16" height="16" />}
+            onPress={() => store.setCommentVisibility('private')}
+          >
+            {t("comment-private")}
+          </Button>
+        </div>
+        <span className="text-xs text-default-400">
+          {store.commentVisibility === 'private' ? t("comment-private-desc") : t("comment-public-desc")}
+        </span>
+      </div>
 
       <div className="w-full flex items-end gap-4 mt-6">
         {
