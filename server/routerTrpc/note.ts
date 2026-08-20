@@ -1088,7 +1088,12 @@ export const noteRouter = router({
 
         const note = await prisma.notes.update({ where: whereClause, data: update });
         if (content == null) {
-          SendWebhook({ ...note, attachments }, isRecycle ? 'delete' : 'update', ctx);
+          // Only real content edits fire an 'update' webhook. Metadata / permission /
+          // pin / archive / share-setting changes (content == null) stay silent so the
+          // webhook isn't spammed by non-content tweaks. Deletes still notify.
+          if (isRecycle) {
+            SendWebhook({ ...note, attachments }, 'delete', ctx);
+          }
           return note;
         }
         const oldTagsInThisNote = await prisma.tagsToNote.findMany({ where: { noteId: note.id }, include: { tag: true } });
