@@ -230,6 +230,7 @@ export const commentRouter = router({
           content: (ctx?.name ?? guestName) + ':' + content,
           metadata: {
             noteId,
+            commentId: comment.id,
             guestName,
             noteContent: note?.content?.substring(0, 80) ?? '',
           },

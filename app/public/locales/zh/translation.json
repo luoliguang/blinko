@@ -673,6 +673,7 @@
   "comment-private": "私密",
   "comment-public-desc": "所有打开此分享的人都能看到全部评论。",
   "comment-private-desc": "每位访客只能看到自己的评论和回复;你(创作者)能看到全部。",
+  "view-original": "查看原文",
   "webhook-events": "Webhook 事件",
   "webhook-event-note-create": "创建",
   "webhook-event-note-update": "更新",

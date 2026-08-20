@@ -51,7 +51,7 @@ export const BlinkoNotification = observer(() => {
     },
     handleMarkAsRead(notification: Notifications) {
       if (notification.type === NotificationType.COMMENT) {
-        ShowCommentDialog(notification.metadata.noteId);
+        ShowCommentDialog(notification.metadata.noteId, notification.metadata.commentId);
       }
       this.markAsRead.call({ id: notification.id });
     }

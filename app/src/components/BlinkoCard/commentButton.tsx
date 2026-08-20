@@ -1,5 +1,5 @@
 import Editor from '../Common/Editor';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/trpc';
 import { UserStore } from '@/store/user';
 import { PromisePageState, PromiseState } from '@/store/standard/PromiseState';
@@ -24,6 +24,7 @@ import i18n from '@/lib/i18n';
 import { Spinner } from '@heroui/react';
 import { ToastPlugin } from '@/store/module/Toast/Toast';
 import { BlinkoItem } from '.';
+import { useNavigate } from 'react-router-dom';
 import { getBlinkoEndpoint } from '@/lib/blinkoEndpoint';
 import { FallbackImage } from '../Common/FallbackImage';
 export type AvatarAccount = { image?: string; nickname?: string; name?: string; id?: any | number; };
@@ -85,11 +86,20 @@ const NestedComment = observer(({
   const { t } = useTranslation();
   const user = RootStore.Get(UserStore);
   const maxDepth = 5; // Limit nesting depth to prevent UI issues
+  const isHighlighted = Store.highlightCommentId != null && comment.id === Store.highlightCommentId;
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isHighlighted && ref.current) {
+      ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [isHighlighted]);
 
   return (
     <div
+      ref={ref}
       key={comment.id}
-      className={`mb-2 border-divider p-2 rounded-2xl bg-background ${depth > 0 ? 'ml-6' : ''}`}
+      className={`mb-2 border-divider p-2 rounded-2xl bg-background transition-colors duration-1000 ${depth > 0 ? 'ml-6' : ''} ${isHighlighted ? 'ring-2 ring-primary bg-primary/10' : ''}`}
       style={{ marginLeft: `${Math.min(depth * 24, maxDepth * 24)}px` }}
     >
       <div className="flex items-center justify-between">
@@ -152,14 +162,16 @@ const NestedComment = observer(({
   );
 });
 
-export const CommentDialog = observer(({ blinkoItem }: { blinkoItem: BlinkoItem }) => {
+export const CommentDialog = observer(({ blinkoItem, highlightCommentId }: { blinkoItem: BlinkoItem, highlightCommentId?: number }) => {
   const { t } = useTranslation();
   const blinko = RootStore.Get(BlinkoStore);
+  const navigate = useNavigate();
   const [content, setContent] = useState('');
   const user = RootStore.Get(UserStore);
   const hubStore = RootStore.Get(HubStore);
 
   const Store = RootStore.Local(() => ({
+    highlightCommentId: highlightCommentId ?? null as number | null,
     reply: {
       id: null as number | null,
       name: ''
@@ -243,8 +255,38 @@ export const CommentDialog = observer(({ blinkoItem }: { blinkoItem: BlinkoItem 
     Store.commentList.resetAndCall({});
   }, []);
 
+  useEffect(() => {
+    if (Store.highlightCommentId == null) return;
+    const timer = setTimeout(() => {
+      Store.highlightCommentId = null;
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [Store.highlightCommentId]);
+
   return (
     <div>
+      {/* Note summary header — helps locate which note this comment belongs to */}
+      {blinkoItem.content && !blinkoItem.originURL && (
+        <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-background">
+          <div className="flex-1 min-w-0 text-sm text-desc line-clamp-2">
+            {blinkoItem.content}
+          </div>
+          <Button
+            size="sm"
+            variant="flat"
+            color="primary"
+            className="shrink-0"
+            startContent={<Icon icon="tabler:external-link" width="14" height="14" />}
+            onPress={() => {
+              RootStore.Get(DialogStore).close();
+              navigate(`/detail?id=${blinkoItem.id}`);
+            }}
+          >
+            {t('view-original')}
+          </Button>
+        </div>
+      )}
+
       {/* Comment List */}
       {Store.commentList.isEmpty ? (
         <div className="text-center text-gray-500 py-4">{t('no-comments-yet')}</div>
@@ -327,7 +369,7 @@ export const SimpleCommentList = observer(({ blinkoItem }: { blinkoItem: BlinkoI
   );
 });
 
-export const ShowCommentDialog = async (noteId: number) => {
+export const ShowCommentDialog = async (noteId: number, highlightCommentId?: number) => {
   const blinko = RootStore.Get(BlinkoStore);
   const dialog = RootStore.Get(DialogStore);
 
@@ -351,7 +393,7 @@ export const ShowCommentDialog = async (noteId: number) => {
       isOpen: true,
       size: 'lg',
       title: `${i18n.t('comment')} ${noteDetail._count?.comments ? `(${noteDetail._count.comments})` : ''}`,
-      content: <CommentDialog blinkoItem={noteDetail} />
+      content: <CommentDialog blinkoItem={noteDetail} highlightCommentId={highlightCommentId} />
     });
 
   } catch (error) {

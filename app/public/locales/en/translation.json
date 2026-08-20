@@ -667,6 +667,7 @@
   "comment-private": "Private",
   "comment-public-desc": "Everyone who opens this share can see all comments.",
   "comment-private-desc": "Each visitor only sees their own comments and replies; you (the creator) see all of them.",
+  "view-original": "View original",
   "webhook-events": "Webhook Events",
   "webhook-event-note-create": "Create",
   "webhook-event-note-update": "Update",
