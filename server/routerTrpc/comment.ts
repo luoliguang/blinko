@@ -170,7 +170,8 @@ export const commentRouter = router({
           id: noteId
         },
         select: {
-          accountId: true
+          accountId: true,
+          content: true
         }
       });
 
@@ -230,6 +231,7 @@ export const commentRouter = router({
           metadata: {
             noteId,
             guestName,
+            noteContent: note?.content?.substring(0, 80) ?? '',
           },
           accountId: Number(note?.accountId),
         })

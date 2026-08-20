@@ -35,7 +35,14 @@ export const SendWebhook = async (data: any, webhookType: string, ctx: any, opti
   try {
     const globalConfig = await getGlobalConfig({ ctx: getWebhookConfigContext(ctx, options.configUserId) })
     if (globalConfig.webhookEndpoint) {
-      await axios.post(globalConfig.webhookEndpoint, { data, webhookType, activityType: getWebhookActivityType(webhookType, options.activityType) })
+      const activityType = getWebhookActivityType(webhookType, options.activityType);
+      const isComment = activityType.startsWith('blinko.comment');
+      const eventKey = isComment ? 'comment' : `note.${webhookType}`;
+      const filter = globalConfig.webhookEventFilter;
+      if (Array.isArray(filter) && filter.length > 0 && !filter.includes(eventKey)) {
+        return;
+      }
+      await axios.post(globalConfig.webhookEndpoint, { data, webhookType, activityType })
     }
   } catch (error) {
     console.log('request webhook error:', error)

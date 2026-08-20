@@ -157,6 +157,11 @@ export const BlinkoNotification = observer(() => {
                         .replace('backup-success', t('backup-success'))
                       }
                     </div>
+                    {notification.type === NotificationType.COMMENT && notification.metadata?.noteContent && (
+                      <div className="text-xs text-default-400 bg-default-100 rounded px-2 py-1 line-clamp-1">
+                        {notification.metadata.noteContent}
+                      </div>
+                    )}
 
                   </div>
                 </div>

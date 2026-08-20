@@ -316,6 +316,34 @@ export const BasicSetting = observer(() => {
             />
           </>} />
       }
+      {
+        user.role == 'superadmin' && !!blinko.config.value?.webhookEndpoint && (() => {
+          const ALL_EVENTS = ['note.create', 'note.update', 'note.delete', 'comment'];
+          const filter: string[] | undefined = blinko.config.value?.webhookEventFilter as any;
+          const isEnabled = (key: string) => !filter || filter.length === 0 || filter.includes(key);
+          const toggle = async (key: string, checked: boolean) => {
+            const current = filter?.length ? [...filter] : [...ALL_EVENTS];
+            const next = checked ? [...current.filter(k => k !== key), key] : current.filter(k => k !== key);
+            await PromiseCall(api.config.update.mutate({ key: 'webhookEventFilter', value: next }));
+            blinko.config.call();
+          };
+          return (
+            <Item
+              leftContent={<>{t('webhook-events')}</>}
+              rightContent={
+                <div className="flex flex-wrap gap-3 items-center">
+                  {ALL_EVENTS.map(key => (
+                    <div key={key} className="flex items-center gap-1">
+                      <Switch size="sm" isSelected={isEnabled(key)} onChange={e => toggle(key, e.target.checked)} />
+                      <span className="text-xs text-default-500">{t(`webhook-event-${key.replace('.', '-')}`)}</span>
+                    </div>
+                  ))}
+                </div>
+              }
+            />
+          );
+        })()
+      }
 
       <Item
         leftContent={<>{t('hide-pc-editor')}</>}
