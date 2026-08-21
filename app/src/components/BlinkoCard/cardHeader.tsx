@@ -202,7 +202,7 @@ export const CardHeader = observer(({ blinkoItem, blinko, isShareMode, isReadOnl
 
         {/* Trash/Recycle bin button */}
         {!isShareMode && !isReadOnly && (
-          <Tooltip content={t('trash')} delay={1000}>
+          <Tooltip content={blinkoItem.isRecycle ? t('delete') : t('trash')} delay={1000}>
             <Icon
               icon="mingcute:delete-2-line"
               width={iconSize}
@@ -210,9 +210,18 @@ export const CardHeader = observer(({ blinkoItem, blinko, isShareMode, isReadOnl
               className={`opacity-0 group-hover/card:opacity-100 group-hover/card:translate-x-0 ml-2 cursor-pointer hover:text-red-500 text-desc ${blinkoItem.isRecycle ? 'text-red-500 opacity-100' : ''}`}
               onClick={(e) => {
                 e.stopPropagation();
-                PromiseCall(api.notes.trashMany.mutate({ ids: [blinkoItem.id!] })).then(() => {
-                  blinko.updateTicker++;
-                });
+                if (blinkoItem.isRecycle) {
+                  // Already in the recycle bin: this icon permanently deletes.
+                  PromiseCall(api.notes.deleteMany.mutate({ ids: [blinkoItem.id!] })).then(() => {
+                    blinko.updateTicker++;
+                  });
+                  PromiseCall(api.ai.embeddingDelete.mutate({ id: blinkoItem.id! }));
+                } else {
+                  // Not recycled yet: move it to the recycle bin.
+                  PromiseCall(api.notes.trashMany.mutate({ ids: [blinkoItem.id!] })).then(() => {
+                    blinko.updateTicker++;
+                  });
+                }
               }}
             />
           </Tooltip>
