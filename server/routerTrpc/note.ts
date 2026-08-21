@@ -624,6 +624,7 @@ export const noteRouter = router({
         notesSchema.merge(
           z.object({
             attachments: z.array(attachmentsSchema),
+            comments: z.any().optional(),
             tags: z.array(
               tagsToNoteSchema.merge(
                 z.object({
@@ -727,6 +728,17 @@ export const noteRouter = router({
               },
             },
           },
+          comments: {
+            include: {
+              account: {
+                select: {
+                  image: true,
+                  nickname: true,
+                  name: true,
+                },
+              },
+            },
+          },
           _count: { select: { comments: true, histories: true } },
           account: {
             select: { id: true, name: true, nickname: true, image: true },
@@ -743,8 +755,24 @@ export const noteRouter = router({
       if (!note) return null;
       const isOwner = note.accountId === Number(ctx.id);
       const myShare = note.internalShares.find((s) => s.accountId === Number(ctx.id));
+      // Comment visibility: in private mode, non-owners only see their own
+      // comments (and their own count), same rule as note.list / comment.list.
+      const visibility = (note.metadata as any)?.commentVisibility ?? 'public';
+      let comments = (note as any).comments;
+      let count = (note as any)._count;
+      if (visibility === 'private' && !isOwner && Array.isArray(comments)) {
+        if (ctx.id) {
+          const myId = Number(ctx.id);
+          comments = comments.filter((c: any) => c.accountId === myId);
+        } else {
+          comments = [];
+        }
+        count = { ...count, comments: comments.length };
+      }
       return {
         ...note,
+        comments,
+        _count: count,
         owner: note.account,
         isInternalShared: note.internalShares.length > 0,
         isSharedNote: !isOwner,

@@ -71,6 +71,13 @@ const generateRandomPassword = () => {
 export const BlinkoShareDialog = observer(({ defaultSettings }: ShareDialogProps) => {
   const { t } = useTranslation();
 
+  // Blinko avatar images are relative paths that need the endpoint + auth token to load.
+  const avatarSrc = (image?: string | null) => {
+    if (!image) return undefined;
+    const token = RootStore.Get(UserStore).tokenData.value?.token;
+    return getBlinkoEndpoint(image + (token ? `?token=${token}` : ''));
+  };
+
   const store = RootStore.Local(() => ({
     settings: (() => {
       const initialPassword = defaultSettings.shareUrl ? defaultSettings.password : generateRandomPassword();
@@ -445,7 +452,7 @@ export const BlinkoShareDialog = observer(({ defaultSettings }: ShareDialogProps
                       />
                       <Avatar
                         key={user.id}
-                        src={user.image ?? undefined}
+                        src={avatarSrc(user.image)}
                         name={user.nickname || user.name}
                       />
                       <div className="ml-3">
@@ -470,7 +477,7 @@ export const BlinkoShareDialog = observer(({ defaultSettings }: ShareDialogProps
                   .map(user => (
                     <Avatar
                       key={user.id}
-                      src={user.image ?? undefined}
+                      src={avatarSrc(user.image)}
                       name={user.nickname || user.name}
                     />
                   ))
