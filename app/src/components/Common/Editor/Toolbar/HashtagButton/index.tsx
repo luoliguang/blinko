@@ -62,14 +62,14 @@ export const HashtagButton = observer(({ store, content }: Props) => {
       </PopoverTrigger>
       <PopoverContent className='flex flex-col max-w-[300px] p-2'>
         <ScrollArea className={'max-h-[300px]'} onBottom={() => { }}>
-          <Input
-            className='mb-2'
-            placeholder={t('search-tags')}
-            size='sm'
-            autoFocus
-            value={localStore.searchText} onChange={e => {
-              localStore.searchText = e.target.value
-            }} />
+         <Input
+           className='mb-2'
+           placeholder={t('search-tags')}
+           size='sm'
+           autoFocus={isPc}
+           value={localStore.searchText} onChange={e => {
+             localStore.searchText = e.target.value
+           }} />
 
           {localStore.tagList?.map((i, index) => (
             <div
