@@ -48,28 +48,29 @@ export const HashtagButton = observer(({ store, content }: Props) => {
       onOpenChange={localStore.setShow}
     >
       <PopoverTrigger>
-        <div
-          onClick={e => {
-            e.preventDefault()
-            e.stopPropagation()
-            localStore.setShow(true)
-          }}>
-          <IconButton
-            tooltip={t('insert-hashtag')}
-            icon="mingcute:hashtag-line"
-          />
-        </div>
-      </PopoverTrigger>
-      <PopoverContent className='flex flex-col max-w-[300px] p-2'>
-        <ScrollArea className={'max-h-[300px]'} onBottom={() => { }}>
-         <Input
-           className='mb-2'
-           placeholder={t('search-tags')}
-           size='sm'
-           autoFocus={isPc}
-           value={localStore.searchText} onChange={e => {
-             localStore.searchText = e.target.value
-           }} />
+         <div
+           onClick={e => {
+             e.preventDefault()
+             e.stopPropagation()
+             store.focus()
+             localStore.setShow(true)
+           }}>
+         <IconButton
+           tooltip={t('insert-hashtag')}
+           icon="mingcute:hashtag-line"
+         />
+       </div>
+     </PopoverTrigger>
+     <PopoverContent className='flex flex-col max-w-[300px] p-2'>
+       <ScrollArea className={'max-h-[300px]'} onBottom={() => { }}>
+        <Input
+          className='mb-2'
+          placeholder={t('search-tags')}
+          size='sm'
+          autoFocus={isPc}
+          value={localStore.searchText} onChange={e => {
+            localStore.searchText = e.target.value
+          }} />
 
           {localStore.tagList?.map((i, index) => (
             <div
