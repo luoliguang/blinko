@@ -5,7 +5,7 @@ import { prisma } from '../prisma';
 import { commentsSchema, accountsSchema, NotificationType } from '@shared/lib/prismaZodType';
 import * as crypto from 'crypto';
 import { CreateNotification } from './notification';
-import { buildCommentWebhookPayload, commentAccountSelect, commentWebhookInclude, sendCommentWebhook } from '@server/lib/commentWebhook';
+import { buildCommentWebhookPayload, commentAccountSelect, commentWebhookInclude, sendCommentWebhook, sendPersonalCommentWebhook } from '@server/lib/commentWebhook';
 
 const accountSchema = accountsSchema.pick({
   id: true,
@@ -182,8 +182,9 @@ export const commentRouter = router({
         });
       }
 
+      let parentComment: { accountId: number | null } | null = null;
       if (parentId) {
-        const parentComment = await prisma.comments.findFirst({
+        parentComment = await prisma.comments.findFirst({
           where: { id: parentId, noteId }
         });
         if (!parentComment) {
@@ -223,6 +224,18 @@ export const commentRouter = router({
         include: commentWebhookInclude
       });
       sendCommentWebhook('comment.created', comment, ctx);
+
+      // Personal webhooks (per-account, set by superadmin out-of-band):
+      // 1. Notify the commenter about their own comment.
+      sendPersonalCommentWebhook(comment.accountId, 'comment.created', comment, { audience: 'self' });
+      // 2. If this is a reply, notify the parent comment's author (unless replying to self).
+      if (parentComment?.accountId && parentComment.accountId !== comment.accountId) {
+        sendPersonalCommentWebhook(parentComment.accountId, 'comment.created', comment, {
+          audience: 'reply',
+          parentCommentId: parentId
+        });
+      }
+
       if (Number(ctx.id) !== note?.accountId || !ctx.id) {
         CreateNotification({
           type: NotificationType.COMMENT,

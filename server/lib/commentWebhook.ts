@@ -1,4 +1,8 @@
+import axios from 'axios';
 import { SendWebhook } from '@server/lib/helper';
+import { prisma } from '@server/prisma';
+
+export const PERSONAL_WEBHOOK_CONFIG_KEY = 'personalWebhookEndpoint';
 
 export type CommentWebhookEvent = 'comment.created' | 'comment.updated' | 'comment.deleted';
 type CommentWebhookAction = 'create' | 'update' | 'delete';
@@ -71,4 +75,35 @@ export const sendCommentWebhook = (event: CommentWebhookEvent, comment: any, ctx
     activityType: `blinko.comment.${webhookType}`,
     configUserId: getCommentWebhookConfigUserId(comment, ctx)
   });
+}
+
+// Personal, per-account webhooks. Unlike the global webhookEndpoint (superadmin,
+// receives everything), these are set by the superadmin per accountId out-of-band
+// (no UI) and only fire for events relevant to that specific account: their own
+// comments, and replies to their comments.
+export const getPersonalWebhookUrl = async (accountId: number | null | undefined): Promise<string | null> => {
+  if (!accountId) return null;
+  const row = await prisma.config.findFirst({ where: { userId: accountId, key: PERSONAL_WEBHOOK_CONFIG_KEY } });
+  const url = (row?.config as any)?.value;
+  return typeof url === 'string' && url ? url : null;
+}
+
+export const sendPersonalCommentWebhook = async (
+  accountId: number | null | undefined,
+  event: CommentWebhookEvent,
+  comment: any,
+  extra: Record<string, any> = {}
+) => {
+  const url = await getPersonalWebhookUrl(accountId);
+  if (!url) return;
+  const webhookType = commentWebhookActionMap[event];
+  try {
+    await axios.post(url, {
+      data: buildCommentWebhookPayload(event, comment, extra),
+      webhookType,
+      activityType: `blinko.comment.${webhookType}`
+    });
+  } catch (error) {
+    console.log('request personal webhook error:', error)
+  }
 }

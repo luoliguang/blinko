@@ -16,6 +16,7 @@
     "clean": "turbo run clean && rm -rf node_modules",
     "dev:backend": "dotenv turbo run dev --filter=@blinko/backend",
     "dev:frontend": "dotenv turbo run dev --filter=@blinko/frontend",
+    "dev:all": "concurrently -n backend,frontend -c blue,green \"bun run dev:backend\" \"bun run dev:frontend\"",
     "postinstall": "turbo run prisma:generate --filter=@blinko/backend",
     "setup": "bun install",
     "prisma:generate": "cd prisma && prisma generate",

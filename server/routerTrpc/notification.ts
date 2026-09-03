@@ -1,7 +1,9 @@
 import { router, authProcedure, publicProcedure } from '@server/middleware';
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { prisma } from '@server/prisma';
 import { InputNotificationType, notificationsSchema, notificationType, NotificationType } from '@shared/lib/prismaZodType';
+import { PERSONAL_WEBHOOK_CONFIG_KEY } from '@server/lib/commentWebhook';
 
 export const CreateNotification = async (input: {
   title: string,
@@ -139,6 +141,56 @@ export const notificationRouter = router({
       });
 
       return true;
+    }),
+
+  // Superadmin-only. Not exposed in any settings UI on purpose — the owner sets
+  // these directly (e.g. via curl/API docs) for accounts they want to notify
+  // personally about their own comments and replies to them.
+  setPersonalWebhook: authProcedure
+    .input(z.object({
+      userId: z.number(),
+      url: z.string().optional(),
+    }))
+    .output(z.boolean())
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.role !== 'superadmin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Only superadmin can set personal webhooks' });
+      }
+      const { userId, url } = input;
+      const existing = await prisma.config.findFirst({ where: { userId, key: PERSONAL_WEBHOOK_CONFIG_KEY } });
+      if (!url) {
+        if (existing) await prisma.config.delete({ where: { id: existing.id } });
+        return true;
+      }
+      if (existing) {
+        await prisma.config.update({ where: { id: existing.id }, data: { config: { value: url } } });
+      } else {
+        await prisma.config.create({ data: { userId, key: PERSONAL_WEBHOOK_CONFIG_KEY, config: { value: url } } });
+      }
+      return true;
+    }),
+
+  listPersonalWebhooks: authProcedure
+    .output(z.array(z.object({
+      userId: z.number(),
+      url: z.string(),
+      user: z.object({ id: z.number(), name: z.string(), nickname: z.string() }).nullable(),
+    })))
+    .query(async ({ ctx }) => {
+      if (ctx.role !== 'superadmin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Only superadmin can view personal webhooks' });
+      }
+      const rows = await prisma.config.findMany({
+        where: { key: PERSONAL_WEBHOOK_CONFIG_KEY, userId: { not: null } },
+        include: { user: { select: { id: true, name: true, nickname: true } } },
+      });
+      return rows
+        .map((row) => ({
+          userId: row.userId!,
+          url: (row.config as any)?.value as string,
+          user: row.user,
+        }))
+        .filter((row) => !!row.url);
     }),
 
 });
