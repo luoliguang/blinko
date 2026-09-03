@@ -1830,6 +1830,7 @@ export const noteRouter = router({
               image: z.string(),
             }).nullable(),
             canEdit: z.boolean(),
+            isSharedNote: z.boolean(),
             _count: z.object({
               comments: z.number(),
               histories: z.number(),
@@ -1850,7 +1851,7 @@ export const noteRouter = router({
             }
           }
         },
-        orderBy: [{ updatedAt: orderBy }],
+        orderBy: [{ createdAt: orderBy }],
         skip: (page - 1) * size,
         take: size,
         include: {
@@ -1885,7 +1886,8 @@ export const noteRouter = router({
         ...note,
         owner: note.account,
         canEdit: note.internalShares[0]?.canEdit || false,
-        internalShares: undefined, // Remove this field from the response
+        isSharedNote: true,
+        internalShares: undefined,
       })));
     }),
   updateNotesOrder: authProcedure
