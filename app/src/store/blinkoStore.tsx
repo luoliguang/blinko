@@ -375,6 +375,12 @@ export class BlinkoStore implements Store {
     }
   })
 
+  sharedWithMeList = new PromisePageState({
+    function: async ({ page, size }) => {
+      return await api.notes.internalSharedWithMe.mutate({ page, size }) as any[];
+    }
+  })
+
   noteList = new PromisePageState({
     function: async ({ page, size, ...filterConfig }) => {
       return this.getFilteredNotes({
@@ -510,6 +516,8 @@ export class BlinkoStore implements Store {
       await this.archivedList.callNextPage({});
     } else if (currentPath === 'trash') {
       await this.trashList.callNextPage({});
+    } else if (currentPath === 'shared') {
+      await this.sharedWithMeList.callNextPage({});
     } else if (currentPath === 'all') {
       this.noteList.resetAndCall({});
     } else {
@@ -560,6 +568,8 @@ export class BlinkoStore implements Store {
       this.archivedList.resetAndCall({});
     } else if (currentPath === 'trash') {
       this.trashList.resetAndCall({});
+    } else if (currentPath === 'shared') {
+      this.sharedWithMeList.resetAndCall({});
     } else if (currentPath === 'all') {
       this.noteList.resetAndCall({});
     } else {
@@ -640,6 +650,9 @@ export class BlinkoStore implements Store {
         this.noteListFilterConfig.type = -1
         this.noteListFilterConfig.isRecycle = true
         this.trashList.resetAndCall({});
+      } else if (path == 'shared') {
+        this.noteListFilterConfig.type = -1
+        this.sharedWithMeList.resetAndCall({});
       } else {
         this.blinkoList.resetAndCall({});
       }

@@ -35,6 +35,7 @@ const Home = observer(() => {
   const isArchivedView = searchParams.get('path') === 'archived';
   const isTrashView = searchParams.get('path') === 'trash';
   const isAllView = searchParams.get('path') === 'all';
+  const isSharedView = searchParams.get('path') === 'shared';
   const [activeId, setActiveId] = useState<number | null>(null);
   const [insertPosition, setInsertPosition] = useState<number | null>(null);
   const [isDragForbidden, setIsDragForbidden] = useState<boolean>(false);
@@ -49,12 +50,14 @@ const Home = observer(() => {
       return blinko.archivedList;
     } else if (isTrashView) {
       return blinko.trashList;
+    } else if (isSharedView) {
+      return blinko.sharedWithMeList;
     } else if (isAllView) {
       return blinko.noteList;
     } else {
       return blinko.blinkoList;
     }
-  }, [isNotesView, isTodoView, isArchivedView, isTrashView, isAllView, blinko]);
+  }, [isNotesView, isTodoView, isArchivedView, isTrashView, isSharedView, isAllView, blinko]);
 
   // Use drag card hook only for non-todo views
   const { localNotes, sensors, setLocalNotes, handleDragStart, handleDragEnd, handleDragOver } = useDragCard({
@@ -70,7 +73,7 @@ const Home = observer(() => {
   const store = RootStore.Local(() => ({
     editorHeight: 30,
     get showEditor() {
-      return !blinko.noteListFilterConfig.isArchived && !blinko.noteListFilterConfig.isRecycle
+      return !blinko.noteListFilterConfig.isArchived && !blinko.noteListFilterConfig.isRecycle && !isSharedView
     },
     get showLoadAll() {
       return currentListState.isLoadAll

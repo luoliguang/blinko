@@ -49,6 +49,12 @@ export class BaseStore implements Store {
       hiddenMobile: true,
     },
     {
+      title: 'shared-with-me',
+      href: '/?path=shared',
+      icon: 'hugeicons:share-08',
+      hiddenMobile: true,
+    },
+    {
       title: 'trash',
       href: '/?path=trash',
       hiddenMobile: true,
