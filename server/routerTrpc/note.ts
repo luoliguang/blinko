@@ -22,6 +22,29 @@ const extractHashtags = (input: string): string[] => {
   return matches ? matches : [];
 };
 
+// Private comment visibility for the card preview (note.list / note.detail).
+// A non-owner viewer should see every comment in threads they started: their own
+// comments plus any replies to them (e.g. the note owner replying). This matches
+// comment.list, which shows the viewer's top-level comments plus all nested replies.
+// A comment is visible when the root of its parent chain was authored by the viewer.
+const filterPrivateComments = (comments: any[], myId: number | null): any[] => {
+  if (!Array.isArray(comments)) return comments;
+  if (!myId) return [];
+  const byId = new Map(comments.map((c: any) => [c.id, c]));
+  const rootAuthorIsMine = (comment: any): boolean => {
+    let cur = comment;
+    const seen = new Set<number>();
+    while (cur?.parentId && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      const parent = byId.get(cur.parentId);
+      if (!parent) break;
+      cur = parent;
+    }
+    return cur?.accountId === myId;
+  };
+  return comments.filter(rootAuthorIsMine);
+};
+
 export const noteRouter = router({
   list: authProcedure
     .meta({ openapi: { method: 'POST', path: '/v1/note/list', summary: 'Query notes list', protect: true, tags: ['Note'] } })
@@ -276,13 +299,8 @@ export const noteRouter = router({
         let comments = (note as any).comments;
         let count = (note as any)._count;
         if (visibility === 'private' && !isOwner && Array.isArray(comments)) {
-          if (ctx.id) {
-            const myId = Number(ctx.id);
-            comments = comments.filter((c: any) => c.accountId === myId);
-          } else {
-            // anonymous can't be reliably matched in the card preview
-            comments = [];
-          }
+          // Anonymous viewers can't be reliably matched in the card preview.
+          comments = ctx.id ? filterPrivateComments(comments, Number(ctx.id)) : [];
           // Also hide the comment COUNT from non-owners in private mode
           count = { ...count, comments: comments.length };
         }
@@ -761,12 +779,7 @@ export const noteRouter = router({
       let comments = (note as any).comments;
       let count = (note as any)._count;
       if (visibility === 'private' && !isOwner && Array.isArray(comments)) {
-        if (ctx.id) {
-          const myId = Number(ctx.id);
-          comments = comments.filter((c: any) => c.accountId === myId);
-        } else {
-          comments = [];
-        }
+        comments = ctx.id ? filterPrivateComments(comments, Number(ctx.id)) : [];
         count = { ...count, comments: comments.length };
       }
       return {

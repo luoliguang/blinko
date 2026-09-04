@@ -355,16 +355,28 @@ export const SimpleCommentList = observer(({ blinkoItem }: { blinkoItem: BlinkoI
     return <div className="text-center text-gray-500 py-2">{t('no-comments-yet')}</div>;
   }
 
+  const authorOf = (c: any) => c?.guestName || c?.account?.nickname || c?.account?.name || t('anonymous');
+  // Resolve reply targets from the flat comment list via parentId.
+  const nameById = new Map<number, string>();
+  commentList.forEach((c: any) => nameById.set(c.id, authorOf(c)));
+
   return (
     <div className="bg-secondbackground rounded-lg px-1 py-2 mt-1">
-      {commentList.map((comment: Comment['items'][0]) => (
-        <div key={comment.id} className="pb-[2px] ">
-          <div className="ml-1 text-xs flex-1">
-            <span className='font-bold text-primary mr-1'> {comment.guestName || comment.account?.nickname || comment.account?.name || t('anonymous')}:</span>
-            {comment.content}
+      {commentList.map((comment: Comment['items'][0]) => {
+        const parentName = comment.parentId ? nameById.get(comment.parentId) : null;
+        return (
+          <div key={comment.id} className="pb-[2px] ">
+            <div className="ml-1 text-xs flex-1">
+              <span className='font-bold text-primary'>{authorOf(comment)}</span>
+              {parentName && (
+                <span className='text-desc'> {t('reply-to')} <span className='font-bold text-primary/80'>{parentName}</span></span>
+              )}
+              <span className='text-desc mr-1'>:</span>
+              {comment.content}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 });
