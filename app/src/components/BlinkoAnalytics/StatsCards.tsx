@@ -11,6 +11,8 @@ interface StatsCardsProps {
     totalWords?: number
     maxDailyWords?: number
     activeDays?: number
+    currentStreak?: number
+    avgWordsPerNote?: number
   }
 }
 
@@ -72,18 +74,20 @@ export const StatsCards = observer(({ stats }: StatsCardsProps) => {
       //@ts-ignore
       [indices[i], indices[j]] = [indices[j], indices[i]]
     }
-    return indices.slice(0, 4).map(i => gradients[i]!)
+    return indices.slice(0, 6).map(i => gradients[i]!)
   }, [])
-  
+
   const statItems = [
     { label: t('note-count'), value: stats?.noteCount ?? 0, delay: 0, gradient: randomGradients[0]!, icon: 'ri:file-list-3-line' },
     { label: t('total-words'), value: stats?.totalWords ?? 0, delay: 0.1, gradient: randomGradients[1]!, icon: 'ri:file-text-line' },
     { label: t('max-daily-words'), value: stats?.maxDailyWords ?? 0, delay: 0.2, gradient: randomGradients[2]!, icon: 'ri:line-chart-line' },
-    { label: t('active-days'), value: stats?.activeDays ?? 0, delay: 0.3, gradient: randomGradients[3]!, icon: 'ri:calendar-check-line' }
+    { label: t('active-days'), value: stats?.activeDays ?? 0, delay: 0.3, gradient: randomGradients[3]!, icon: 'ri:calendar-check-line' },
+    { label: t('current-streak'), value: stats?.currentStreak ?? 0, delay: 0.4, gradient: randomGradients[4]!, icon: 'ri:fire-line' },
+    { label: t('avg-words-per-note'), value: stats?.avgWordsPerNote ?? 0, delay: 0.5, gradient: randomGradients[5]!, icon: 'ri:quill-pen-line' }
   ]
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
       {statItems.map((item) => (
         <StatCard key={item.label} {...item} />
       ))}

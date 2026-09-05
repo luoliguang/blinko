@@ -28,11 +28,28 @@ export const TagDistributionChart = observer(({ tagStats }: TagDistributionChart
     }
 
     const isDark = theme === 'dark'
+    const total = tagStats.reduce((sum, item) => sum + item.count, 0)
 
     const option = {
       tooltip: {
         trigger: 'item',
         formatter: '{b}: {c} ({d}%)'
+      },
+      title: {
+        text: String(total),
+        subtext: t('total'),
+        left: isMobile ? '50%' : '40%',
+        top: isMobile ? '33%' : '43%',
+        textAlign: 'center',
+        textStyle: {
+          color: isDark ? '#fff' : '#000',
+          fontSize: 26,
+          fontWeight: 'bold'
+        },
+        subtextStyle: {
+          color: isDark ? '#aaa' : '#888',
+          fontSize: 12
+        }
       },
       legend: {
         type: 'scroll',
@@ -57,6 +74,7 @@ export const TagDistributionChart = observer(({ tagStats }: TagDistributionChart
           radius: isMobile ? ['30%', '60%'] : ['40%', '70%'],
           center: isMobile ? ['50%', '40%'] : ['40%', '50%'],
           avoidLabelOverlap: true,
+          minShowLabelAngle: 12,
           itemStyle: {
             borderRadius: 10,
             borderColor: isDark ? '#1f1f1f' : '#ffffff',
@@ -106,6 +124,10 @@ export const TagDistributionChart = observer(({ tagStats }: TagDistributionChart
         chart.resize()
         const newIsMobile = window.innerWidth < 768
         chart.setOption({
+          title: {
+            left: newIsMobile ? '50%' : '40%',
+            top: newIsMobile ? '33%' : '43%'
+          },
           legend: {
             orient: newIsMobile ? 'horizontal' : 'vertical',
             right: newIsMobile ? 'center' : 10,

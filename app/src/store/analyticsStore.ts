@@ -10,6 +10,11 @@ interface MonthlyStats {
   totalWords: number;
   maxDailyWords: number;
   activeDays: number;
+  avgWordsPerNote: number;
+  currentStreak: number;
+  longestStreak: number;
+  mostActiveWeekday: number;
+  monthOverMonth: number;
   tagStats?: {
     tagName: string;
     count: number;
