@@ -1855,6 +1855,11 @@ export const noteRouter = router({
     .mutation(async function ({ input, ctx }) {
       const { page, size, orderBy } = input;
 
+      // Sort by the same field the card displays (config.isOrderByCreateTime),
+      // otherwise the list order won't match the visible timestamps.
+      const config = await getGlobalConfig({ ctx });
+      const timeOrderBy = config?.isOrderByCreateTime ? { createdAt: orderBy } : { updatedAt: orderBy };
+
       return await prisma.notes.findMany({
         where: {
           isRecycle: false,
@@ -1864,7 +1869,7 @@ export const noteRouter = router({
             }
           }
         },
-        orderBy: [{ createdAt: orderBy }],
+        orderBy: [timeOrderBy],
         skip: (page - 1) * size,
         take: size,
         include: {
