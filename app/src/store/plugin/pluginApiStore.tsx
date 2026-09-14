@@ -57,6 +57,16 @@ export type RightClickMenu = {
   disabled?: boolean;
 }
 
+// Icon rendered in the top-right header navbar (next to search / filter),
+// for plugins that expose an app-level entry point rather than an editor tool.
+export type NavBarIcon = {
+  name: string;
+  icon: string;
+  tooltip: string;
+  onClick?: () => void;
+  order?: number;
+}
+
 export type DialogOptions = {
   title: string;
   size: "sm" | "md" | "lg" | "xl" | "2xl" | "full" | "xs" | "3xl" | "4xl" | "5xl" | 'full';
@@ -68,6 +78,7 @@ export class PluginApiStore implements Store {
   autoObservable = true
 
   customToolbarIcons: ToolbarIcon[] = [];
+  customNavBarIcons: NavBarIcon[] = [];
   customRightClickMenus: RightClickMenu[] = [];
   customAiPrompts: { name: string; prompt: string; icon?: string }[] = [];
   customCardFooterSlots: CardFooterSlot[] = [];
@@ -122,6 +133,15 @@ export class PluginApiStore implements Store {
       tooltip: options.tooltip,
       onClick: options.onClick
     });
+  }
+
+  addNavBarIcon(options: NavBarIcon) {
+    const sameNameIndex = this.customNavBarIcons.findIndex(item => item.name === options.name);
+    if (sameNameIndex !== -1) {
+      this.customNavBarIcons[sameNameIndex] = options;
+      return;
+    }
+    this.customNavBarIcons.push(options);
   }
 
   addRightClickMenu(options: RightClickMenu) {

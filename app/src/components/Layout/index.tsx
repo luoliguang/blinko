@@ -23,6 +23,8 @@ import { ToastPlugin } from '@/store/module/Toast/Toast';
 import { BarSearchInput } from './BarSearchInput';
 import { BlinkoNotification } from '@/components/BlinkoNotification';
 import { AiStore } from '@/store/aiStore';
+import { PluginApiStore } from '@/store/plugin/pluginApiStore';
+import { IconButton } from '@/components/Common/Editor/Toolbar/IconButton';
 import { useLocation, useSearchParams, Link } from 'react-router-dom';
 
 export const SideBarItem = 'p-2 flex flex-row items-center cursor-pointer gap-2 hover:bg-hover rounded-xl !transition-all';
@@ -43,6 +45,7 @@ export const CommonLayout = observer(({ children, header }: { children?: React.R
   const user = RootStore.Get(UserStore);
   const blinkoStore = RootStore.Get(BlinkoStore);
   const base = RootStore.Get(BaseStore);
+  const pluginApi = RootStore.Get(PluginApiStore);
   const location = useLocation()
   const [searchParams] = useSearchParams()
   blinkoStore.use();
@@ -179,6 +182,18 @@ export const CommonLayout = observer(({ children, header }: { children?: React.R
               <div className="flex items-center justify-center gap-2 md:gap-4 w-auto ">
                 <BarSearchInput isPc={isPc} />
                 <FilterPop />
+                {pluginApi.customNavBarIcons
+                  .slice()
+                  .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                  .map((item) => (
+                    <IconButton
+                      key={item.name}
+                      icon={item.icon}
+                      tooltip={item.tooltip}
+                      onClick={item.onClick}
+                      size={22}
+                    />
+                  ))}
                 {!blinkoStore.config.value?.isCloseDailyReview && <Badge size="sm" className="shrink-0" content={blinkoStore.dailyReviewNoteList.value?.length} color="warning">
                   <Link to="/review">
                     <Button

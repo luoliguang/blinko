@@ -301,6 +301,7 @@ export class PluginManagerStore implements Store {
           blinkoStore.updateTicker++;
         },
         addToolBarIcon: pluginApi.addToolBarIcon.bind(pluginApi),
+        addNavBarIcon: pluginApi.addNavBarIcon.bind(pluginApi),
         addRightClickMenu: pluginApi.addRightClickMenu.bind(pluginApi),
         addAiWritePrompt: pluginApi.addAiWritePrompt.bind(pluginApi),
         showDialog: pluginApi.showDialog.bind(pluginApi),
