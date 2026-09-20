@@ -95,6 +95,10 @@ export const BlinkoShareDialog = observer(({ defaultSettings }: ShareDialogProps
     teamMembers: [] as PublicUser[],
     selectedUserIds: defaultSettings.internalShareUserIds || [] as number[],
     isLoadingUsers: false,
+    searchKeyword: '',
+    // Tracks whether the user explicitly picked a comment visibility, so the
+    // "default to private on internal share" auto-default doesn't override them.
+    userSetVisibility: false,
     canEdit: defaultSettings.canEdit ?? false,
     commentVisibility: (defaultSettings.commentVisibility
       ?? (RootStore.Get(BlinkoStore).curSelectedNote?.metadata as any)?.commentVisibility
@@ -154,6 +158,22 @@ export const BlinkoShareDialog = observer(({ defaultSettings }: ShareDialogProps
 
     setCommentVisibility(value: 'public' | 'private') {
       this.commentVisibility = value;
+      this.userSetVisibility = true;
+    },
+
+    setSearchKeyword(value: string) {
+      this.searchKeyword = value;
+    },
+
+    // Stable ordering so the same person is always in the same place, plus a
+    // keyword filter for quick selection. Sorted alphabetically by display name.
+    get filteredMembers() {
+      const kw = this.searchKeyword.trim().toLowerCase();
+      const displayName = (u: PublicUser) => (u.nickname || u.name || '').toLowerCase();
+      return this.teamMembers
+        .filter((u) => !kw || displayName(u).includes(kw))
+        .slice()
+        .sort((a, b) => displayName(a).localeCompare(displayName(b)));
     },
 
     handleExpiryChange(type: string) {
@@ -240,6 +260,12 @@ export const BlinkoShareDialog = observer(({ defaultSettings }: ShareDialogProps
     },
 
     async loadTeamMembers() {
+      // Internal shares default to private comments (easier to manage), unless the
+      // note already has a saved visibility or the user picked one this session.
+      const existingVisibility = (RootStore.Get(BlinkoStore).curSelectedNote?.metadata as any)?.commentVisibility;
+      if (!existingVisibility && !this.userSetVisibility) {
+        this.commentVisibility = 'private';
+      }
       this.setIsLoadingUsers(true);
       try {
         const users = await api.users.publicUserList.query();
@@ -443,8 +469,19 @@ export const BlinkoShareDialog = observer(({ defaultSettings }: ShareDialogProps
                   {t("no-team-members-found")}
                 </div>
               ) : (
+                <>
+                <Input
+                  size="sm"
+                  variant="flat"
+                  placeholder={t("search-members")}
+                  value={store.searchKeyword}
+                  onValueChange={store.setSearchKeyword}
+                  startContent={<Icon icon="mdi:magnify" className="text-default-400" width="18" height="18" />}
+                  isClearable
+                  onClear={() => store.setSearchKeyword('')}
+                />
                 <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                  {store.teamMembers.map(user => (
+                  {store.filteredMembers.map(user => (
                     <div key={user.id} className="cursor-pointer flex items-center p-2 hover:bg-default-100 rounded-md" onClick={() => store.handleUserToggle(user.id)}>
                       <Checkbox
                         isSelected={store.selectedUserIds.includes(user.id)}
@@ -463,7 +500,11 @@ export const BlinkoShareDialog = observer(({ defaultSettings }: ShareDialogProps
                       </Chip>
                     </div>
                   ))}
+                  {store.filteredMembers.length === 0 && (
+                    <div className="text-center text-default-400 py-3 text-sm">{t("no-team-members-found")}</div>
+                  )}
                 </div>
+                </>
               )
             )}
           </div>
@@ -487,12 +528,33 @@ export const BlinkoShareDialog = observer(({ defaultSettings }: ShareDialogProps
           )}
 
           {store.selectedUserIds.length > 0 && (
-            <div className="flex items-center justify-between p-3 bg-default-50 dark:bg-default-100/10 rounded-md">
+            <div className="flex flex-col gap-2 p-3 bg-default-50 dark:bg-default-100/10 rounded-md">
               <div className="flex flex-col">
-                <span className="text-default-700 font-medium">{t("allow-edit")}</span>
-                <span className="text-xs text-default-400">{t("allow-edit-desc")}</span>
+                <span className="text-default-700 font-medium">{t("permission")}</span>
+                <span className="text-xs text-default-400">{t("permission-applies-to-all")}</span>
               </div>
-              <Switch isSelected={store.canEdit} onValueChange={store.setCanEdit} />
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant={!store.canEdit ? 'solid' : 'flat'}
+                  color={!store.canEdit ? 'primary' : 'default'}
+                  className="flex-1"
+                  startContent={<Icon icon="mdi:eye-outline" width="16" height="16" />}
+                  onPress={() => store.setCanEdit(false)}
+                >
+                  {t("read-only")}
+                </Button>
+                <Button
+                  size="sm"
+                  variant={store.canEdit ? 'solid' : 'flat'}
+                  color={store.canEdit ? 'primary' : 'default'}
+                  className="flex-1"
+                  startContent={<Icon icon="mdi:pencil-outline" width="16" height="16" />}
+                  onPress={() => store.setCanEdit(true)}
+                >
+                  {t("can-edit")}
+                </Button>
+              </div>
             </div>
           )}
         </div>
