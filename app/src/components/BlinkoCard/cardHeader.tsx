@@ -106,14 +106,25 @@ export const CardHeader = observer(({ blinkoItem, blinko, isShareMode, isReadOnl
           </Popover>
         )}
 
-        {/* Recipient view: who shared this note with me */}
+        {/* Recipient view: a neutral "shared with me" marker. The sharer's avatar and
+            name stay behind a click (no hover reveal) so screenshots don't expose them. */}
         {blinkoItem.isSharedNote && blinkoItem.owner && (
-          <Tooltip content={`${t('shared-by')}: ${blinkoItem.owner.nickname || blinkoItem.owner.name}`} delay={300}>
-            <div className="flex items-center gap-1 cursor-pointer">
-              <Avatar src={avatarSrc(blinkoItem.owner.image)} name={blinkoItem.owner.nickname || blinkoItem.owner.name} className="w-5 h-5 text-tiny shrink-0" />
-              <span className={`${isExpanded ? 'text-sm' : 'text-xs'} text-desc truncate max-w-[100px]`}>{blinkoItem.owner.nickname || blinkoItem.owner.name}</span>
-            </div>
-          </Tooltip>
+          <Popover placement="bottom-start" showArrow>
+            <PopoverTrigger>
+              <div className="flex items-center cursor-pointer text-desc" onClick={(e) => e.stopPropagation()}>
+                <Icon icon="material-symbols:inbox-outline" width={iconSize} height={iconSize} />
+              </div>
+            </PopoverTrigger>
+            <PopoverContent>
+              <div className="flex items-center gap-2 py-2 px-1 w-[200px]" onClick={(e) => e.stopPropagation()}>
+                <Avatar src={avatarSrc(blinkoItem.owner.image)} name={blinkoItem.owner.nickname || blinkoItem.owner.name} className="w-6 h-6 text-tiny shrink-0" />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-tiny opacity-60">{t('shared-by')}</span>
+                  <span className="text-xs truncate">{blinkoItem.owner.nickname || blinkoItem.owner.name}</span>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
         )}
 
         {isReadOnly && (
