@@ -1,5 +1,5 @@
 import { Icon } from '@/components/Common/Iconify/icons';
-import { Tooltip, Avatar, AvatarGroup, Popover, PopoverTrigger, PopoverContent } from '@heroui/react';
+import { Tooltip, Avatar, Popover, PopoverTrigger, PopoverContent } from '@heroui/react';
 import { Copy } from "../Common/Copy";
 import { LeftCickMenu, ShowEditTimeModel } from "../BlinkoRightClickMenu";
 import { BlinkoStore } from '@/store/blinkoStore';
@@ -82,12 +82,11 @@ export const CardHeader = observer(({ blinkoItem, blinko, isShareMode, isReadOnl
         {blinkoItem.isInternalShared && !blinkoItem.isSharedNote && !!blinkoItem.internalShares?.length && (
           <Popover placement="bottom-start" showArrow>
             <PopoverTrigger>
-              <div className="flex items-center cursor-pointer" onClick={(e) => e.stopPropagation()}>
-                <AvatarGroup max={3} className="[&_span]:w-5 [&_span]:h-5 [&_span]:text-[9px]">
-                  {blinkoItem.internalShares!.map((s) => (
-                    <Avatar key={s.accountId} src={avatarSrc(s.account?.image)} name={s.account?.nickname || s.account?.name} />
-                  ))}
-                </AvatarGroup>
+              {/* Neutral indicator (icon + count) instead of avatars, so screenshots
+                  of a note don't expose who it was shared with. Click for details. */}
+              <div className="flex items-center gap-1 cursor-pointer text-desc" onClick={(e) => e.stopPropagation()}>
+                <Icon icon="material-symbols:group-outline" width={iconSize} height={iconSize} />
+                <span className={isExpanded ? 'text-sm' : 'text-xs'}>{blinkoItem.internalShares!.length}</span>
               </div>
             </PopoverTrigger>
             <PopoverContent>
