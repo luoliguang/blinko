@@ -19,7 +19,6 @@ import { PluginApiStore } from "@/store/plugin/pluginApiStore";
 import { PluginRender } from "@/store/plugin/pluginRender";
 import { useLocation } from "react-router-dom";
 import { SwipeableCard } from "./SwipeableCard";
-import { api } from "@/lib/trpc";
 import { FullscreenEditor } from "./FullscreenEditor";
 
 
@@ -99,9 +98,7 @@ export const BlinkoCard = observer(({ blinkoItem, account, isShareMode = false, 
 
   const handleSwipeDelete = () => {
     if (isReadOnly) return;
-    api.notes.trashMany.mutate({ ids: [blinkoItem.id!] }).then(() => {
-      blinko.updateTicker++;
-    });
+    blinko.trashWithUndo([blinkoItem.id!]);
   };
 
   return (

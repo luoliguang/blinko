@@ -136,6 +136,23 @@ export class ToastPlugin implements Store {
   error(str: string) {
     toast.error(this.splitTextIntoLines(str, 60))
   };
+  // A toast with an inline "Undo" button, for reversible actions like moving to trash.
+  undoable(str: string, onUndo: () => void | Promise<void>, duration = 5000) {
+    toast((t) => (
+      <span className="flex items-center gap-3">
+        <span>{str}</span>
+        <button
+          className="text-primary font-semibold shrink-0"
+          onClick={() => {
+            toast.dismiss(t.id);
+            onUndo();
+          }}
+        >
+          {i18n.t('undo')}
+        </button>
+      </span>
+    ), { duration });
+  };
   loading = toast.loading;
   custom = toast.custom;
   dismiss = toast.dismiss;

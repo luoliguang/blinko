@@ -296,7 +296,7 @@ const handleAITag = () => {
 
 const handleTrash = () => {
   const blinko = RootStore.Get(BlinkoStore)
-  PromiseCall(api.notes.trashMany.mutate({ ids: [blinko.curSelectedNote?.id!] }))
+  blinko.trashWithUndo([blinko.curSelectedNote?.id!])
 }
 
 const handleDelete = async () => {

@@ -505,6 +505,18 @@ export class BlinkoStore implements Store {
   }
 
 
+  // Move notes to the recycle bin and offer a few seconds to undo it.
+  // Used by the card trash icon, the right-click menu and mobile swipe-to-delete,
+  // which previously trashed silently and made accidental deletes easy to miss.
+  async trashWithUndo(ids: number[]) {
+    await api.notes.trashMany.mutate({ ids });
+    this.updateTicker++;
+    RootStore.Get(ToastPlugin).undoable(i18n.t('moved-to-trash'), async () => {
+      await api.notes.updateMany.mutate({ ids, isRecycle: false });
+      this.updateTicker++;
+    });
+  }
+
   async onBottom() {
     const currentPath = new URLSearchParams(window.location.search).get('path');
     

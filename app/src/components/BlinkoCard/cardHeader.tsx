@@ -227,10 +227,8 @@ export const CardHeader = observer(({ blinkoItem, blinko, isShareMode, isReadOnl
                   });
                   PromiseCall(api.ai.embeddingDelete.mutate({ id: blinkoItem.id! }), { autoAlert: false });
                 } else {
-                  // Not recycled yet: move it to the recycle bin.
-                  PromiseCall(api.notes.trashMany.mutate({ ids: [blinkoItem.id!] })).then(() => {
-                    blinko.updateTicker++;
-                  });
+                  // Not recycled yet: move it to the recycle bin (with undo).
+                  blinko.trashWithUndo([blinkoItem.id!]);
                 }
               }}
             />

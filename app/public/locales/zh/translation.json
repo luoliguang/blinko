@@ -354,6 +354,7 @@
   "title": "标题",
   "tooltip-text": "工具提示文本",
   "undo": "撤销",
+  "moved-to-trash": "已移至回收站",
   "up": "向上",
   "update": "更新",
   "updated-at": "更新时间",
