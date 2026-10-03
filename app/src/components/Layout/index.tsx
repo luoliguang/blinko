@@ -103,7 +103,7 @@ export const CommonLayout = observer(({ children, header }: { children?: React.R
       <main
         id="page-wrap"
         style={{ width: isPc ? `calc(100% - ${base.sideBarWidth}px - ${queueOpen ? base.writingQueueWidth.value : 0}px)` : '100%' }}
-        className={`flex !transition-all duration-300 overflow-y-hidden w-full flex-col gap-y-1 bg-secondbackground`}
+        className={`flex ${base.isQueueResizing || base.isResizing ? 'transition-none' : '!transition-all duration-300'} overflow-y-hidden w-full flex-col gap-y-1 bg-secondbackground`}
       >
         {/* nav bar  */}
         <header

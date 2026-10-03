@@ -100,10 +100,13 @@ export class BaseStore implements Store {
     if (!this.isQueueResizing) return;
     e.preventDefault();
     const newWidth = Math.max(260, Math.min(560, window.innerWidth - e.clientX));
-    this.writingQueueWidth.save(newWidth);
+    // Update the observable only (no localStorage write) during the drag, so it
+    // tracks the cursor smoothly; persist once on mouse up.
+    this.writingQueueWidth.value = newWidth;
   };
   stopQueueResizing = () => {
     this.isQueueResizing = false;
+    this.writingQueueWidth.save(this.writingQueueWidth.value);
     document.removeEventListener('mousemove', this.handleQueueMouseMove);
     document.removeEventListener('mouseup', this.stopQueueResizing);
   };
