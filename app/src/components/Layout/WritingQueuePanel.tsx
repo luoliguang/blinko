@@ -29,7 +29,15 @@ export const WritingQueuePanel = observer(() => {
   const items = blinko.pendingWriteList.value ?? [];
 
   return (
-    <div className="fixed right-0 top-0 z-[12] h-full w-[300px] flex flex-col bg-background border-l border-divider shadow-lg animate-in slide-in-from-right duration-300">
+    <div
+      className="relative h-full shrink-0 flex flex-col bg-background border-l border-divider"
+      style={{ width: `${base.writingQueueWidth.value}px` }}
+    >
+      {/* Drag the left edge to resize the panel */}
+      <div
+        className={`absolute left-0 top-0 h-full w-1.5 cursor-col-resize z-10 hover:bg-primary/30 ${base.isQueueResizing ? 'bg-primary/40' : ''}`}
+        onMouseDown={base.startQueueResizing}
+      />
       <div className="flex items-center justify-between px-4 h-16 min-h-16 border-b border-divider">
         <div className="flex items-center gap-2">
           <Icon icon="hugeicons:task-01" width="20" height="20" className="text-primary" />

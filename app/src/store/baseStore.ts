@@ -82,9 +82,31 @@ export class BaseStore implements Store {
   documentHeight = 0;
   // Desktop writing-queue side panel (notes flagged "to write later"). Persisted.
   writingQueueOpen = new StorageState<boolean>({ key: 'writingQueueOpen', default: false });
+  writingQueueWidth = new StorageState<number>({ key: 'writingQueueWidth', default: 320 });
+  isQueueResizing = false;
   toggleWritingQueue() {
     this.writingQueueOpen.save(!this.writingQueueOpen.value);
   }
+  // Panel sits on the right edge, so dragging its left border resizes it:
+  // width = viewport width - cursor X. Clamped to a sensible range.
+  startQueueResizing = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    this.isQueueResizing = true;
+    document.addEventListener('mousemove', this.handleQueueMouseMove);
+    document.addEventListener('mouseup', this.stopQueueResizing);
+  };
+  handleQueueMouseMove = (e: MouseEvent) => {
+    if (!this.isQueueResizing) return;
+    e.preventDefault();
+    const newWidth = Math.max(260, Math.min(560, window.innerWidth - e.clientX));
+    this.writingQueueWidth.save(newWidth);
+  };
+  stopQueueResizing = () => {
+    this.isQueueResizing = false;
+    document.removeEventListener('mousemove', this.handleQueueMouseMove);
+    document.removeEventListener('mouseup', this.stopQueueResizing);
+  };
   isSideBarActive(routerInfo: any, currentRouter: any) {
     const pathname = routerInfo.pathname;
     const path = routerInfo.searchParams?.get ? routerInfo.searchParams.get('path') : routerInfo.query?.path;

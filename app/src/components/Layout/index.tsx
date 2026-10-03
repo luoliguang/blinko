@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Badge } from '@heroui/react';
+import { Button, Badge, Tooltip } from '@heroui/react';
 import { Icon } from '@/components/Common/Iconify/icons';
 import { UserStore } from '@/store/user';
 import { observer } from 'mobx-react-lite';
@@ -26,8 +26,6 @@ import { AiStore } from '@/store/aiStore';
 import { PluginApiStore } from '@/store/plugin/pluginApiStore';
 import { IconButton } from '@/components/Common/Editor/Toolbar/IconButton';
 import { WritingQueuePanel } from './WritingQueuePanel';
-
-const WRITING_QUEUE_WIDTH = 300;
 import { useLocation, useSearchParams, Link } from 'react-router-dom';
 
 export const SideBarItem = 'p-2 flex flex-row items-center cursor-pointer gap-2 hover:bg-hover rounded-xl !transition-all';
@@ -104,7 +102,7 @@ export const CommonLayout = observer(({ children, header }: { children?: React.R
         return (
       <main
         id="page-wrap"
-        style={{ width: isPc ? `calc(100% - ${base.sideBarWidth}px - ${queueOpen ? WRITING_QUEUE_WIDTH : 0}px)` : '100%' }}
+        style={{ width: isPc ? `calc(100% - ${base.sideBarWidth}px - ${queueOpen ? base.writingQueueWidth.value : 0}px)` : '100%' }}
         className={`flex !transition-all duration-300 overflow-y-hidden w-full flex-col gap-y-1 bg-secondbackground`}
       >
         {/* nav bar  */}
@@ -214,20 +212,21 @@ export const CommonLayout = observer(({ children, header }: { children?: React.R
                   </Link>
                 </Badge>}
                 {isPc && (
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="light"
-                    onPress={() => base.toggleWritingQueue()}
-                    title={t('writing-queue')}
-                  >
-                    <Icon
-                      className={base.writingQueueOpen.value ? 'text-primary' : 'text-default-600'}
-                      icon="hugeicons:task-01"
-                      width="22"
-                      height="22"
-                    />
-                  </Button>
+                  <Tooltip content={t('writing-queue')} placement="bottom" delay={300}>
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="light"
+                      onPress={() => base.toggleWritingQueue()}
+                    >
+                      <Icon
+                        className={base.writingQueueOpen.value ? 'text-primary' : 'text-default-600'}
+                        icon="hugeicons:task-01"
+                        width="22"
+                        height="22"
+                      />
+                    </Button>
+                  </Tooltip>
                 )}
                 <BlinkoNotification />
               </div>
