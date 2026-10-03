@@ -741,6 +741,7 @@
   "loading-shared-conversation": "加载分享对话中...",
   "invalid-share-link": "无效的分享链接",
   "conversation-not-found": "分享的对话不存在或未公开",
+  "note-not-found": "笔记不存在或已删除",
   "load-conversation-failed": "加载分享对话失败",
   "conversation-not-exist": "分享的对话不存在",
   "load-failed": "加载失败",

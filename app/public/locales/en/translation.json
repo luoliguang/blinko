@@ -725,6 +725,7 @@
   "loading-shared-conversation": "Loading shared conversation...",
   "invalid-share-link": "Invalid share link",
   "conversation-not-found": "Shared conversation not found or not public",
+  "note-not-found": "Note not found or deleted",
   "load-conversation-failed": "Failed to load shared conversation",
   "conversation-not-exist": "Shared conversation does not exist",
   "load-failed": "Load failed",

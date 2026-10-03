@@ -1,12 +1,14 @@
 import { observer } from 'mobx-react-lite';
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/Common/Iconify/icons';
 import { Button } from '@heroui/react';
 import { RootStore } from '@/store';
 import { BlinkoStore } from '@/store/blinkoStore';
 import { BaseStore } from '@/store/baseStore';
+import { ShowEditBlinkoModel } from '@/components/BlinkoRightClickMenu';
+import { ToastPlugin } from '@/store/module/Toast/Toast';
+import i18n from '@/lib/i18n';
 import dayjs from '@/lib/dayjs';
 
 // Pull a short, human-readable title from a note's markdown content:
@@ -18,13 +20,24 @@ const previewTitle = (content: string) => {
 
 export const WritingQueuePanel = observer(() => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const blinko = RootStore.Get(BlinkoStore);
   const base = RootStore.Get(BaseStore);
 
   useEffect(() => {
     blinko.pendingWriteList.call();
   }, [blinko.updateTicker]);
+
+  // Open the edit dialog in place (don't navigate away). Fetch the full note first
+  // since the queue only holds a lightweight preview.
+  const openEdit = async (id: number) => {
+    const note = await blinko.noteDetail.call({ id });
+    if (!note) {
+      RootStore.Get(ToastPlugin).error(i18n.t('note-not-found'));
+      return;
+    }
+    blinko.curSelectedNote = note as any;
+    ShowEditBlinkoModel();
+  };
 
   const items = blinko.pendingWriteList.value ?? [];
 
@@ -64,7 +77,7 @@ export const WritingQueuePanel = observer(() => {
                 <div className="absolute -left-[13px] top-1.5 w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-background" />
                 <div
                   className="cursor-pointer rounded-lg p-2 hover:bg-hover !transition-all"
-                  onClick={() => navigate(`/detail?id=${item.id}`)}
+                  onClick={() => openEdit(item.id)}
                 >
                   <div className="text-[11px] text-desc mb-0.5">{dayjs(item.createdAt).format('MM-DD HH:mm')}</div>
                   <div className="text-sm font-medium line-clamp-2">{previewTitle(item.content)}</div>
