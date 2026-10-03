@@ -1435,6 +1435,30 @@ export const noteRouter = router({
       SendWebhook({ ids }, 'delete', ctx);
       return await prisma.notes.updateMany({ where: { id: { in: ids }, accountId: Number(ctx.id) }, data: { isRecycle: true } });
     }),
+  // Notes the user flagged as "to write later" (metadata.pendingWrite = true),
+  // powering the desktop writing-queue side panel. Newest first.
+  pendingWriteList: authProcedure
+    .meta({ openapi: { method: 'POST', path: '/v1/note/pending-write-list', summary: 'Query notes flagged to write later', protect: true, tags: ['Note'] } })
+    .input(z.object({}).optional())
+    .output(z.array(z.object({
+      id: z.number(),
+      content: z.string(),
+      createdAt: z.date(),
+      updatedAt: z.date(),
+    })))
+    .mutation(async function ({ ctx }) {
+      const notes = await prisma.notes.findMany({
+        where: {
+          accountId: Number(ctx.id),
+          isRecycle: false,
+          isArchived: false,
+          metadata: { path: ['pendingWrite'], equals: true },
+        },
+        orderBy: [{ createdAt: 'desc' }],
+        select: { id: true, content: true, createdAt: true, updatedAt: true },
+      });
+      return notes;
+    }),
   deleteMany: authProcedure
     .use(demoAuthMiddleware)
     .meta({ openapi: { method: 'POST', path: '/v1/note/batch-delete', summary: 'Batch delete note', protect: true, tags: ['Note'] } })

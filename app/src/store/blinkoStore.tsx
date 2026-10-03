@@ -517,6 +517,27 @@ export class BlinkoStore implements Store {
     });
   }
 
+  // Notes flagged "to write later" (metadata.pendingWrite), for the writing-queue panel.
+  pendingWriteList = new PromiseState({
+    function: async () => {
+      return await api.notes.pendingWriteList.mutate({}) as { id: number; content: string; createdAt: Date; updatedAt: Date }[];
+    }
+  })
+
+  // Toggle a note's "to write later" flag. Metadata is merged server-side, so this
+  // preserves other keys (e.g. commentVisibility).
+  async togglePendingWrite(note: Note) {
+    const next = !((note.metadata as any)?.pendingWrite);
+    await this.upsertNote.call({
+      id: note.id,
+      metadata: { pendingWrite: next },
+      refresh: false,
+      showToast: false,
+    });
+    this.updateTicker++;
+    this.pendingWriteList.call();
+  }
+
   async onBottom() {
     const currentPath = new URLSearchParams(window.location.search).get('path');
     

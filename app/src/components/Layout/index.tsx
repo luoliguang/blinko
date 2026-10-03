@@ -25,6 +25,9 @@ import { BlinkoNotification } from '@/components/BlinkoNotification';
 import { AiStore } from '@/store/aiStore';
 import { PluginApiStore } from '@/store/plugin/pluginApiStore';
 import { IconButton } from '@/components/Common/Editor/Toolbar/IconButton';
+import { WritingQueuePanel } from './WritingQueuePanel';
+
+const WRITING_QUEUE_WIDTH = 300;
 import { useLocation, useSearchParams, Link } from 'react-router-dom';
 
 export const SideBarItem = 'p-2 flex flex-row items-center cursor-pointer gap-2 hover:bg-hover rounded-xl !transition-all';
@@ -96,9 +99,12 @@ export const CommonLayout = observer(({ children, header }: { children?: React.R
 
       {isPc && <Sidebar />}
 
+      {(() => {
+        const queueOpen = isPc && base.writingQueueOpen.value;
+        return (
       <main
         id="page-wrap"
-        style={{ width: isPc ? `calc(100% - ${base.sideBarWidth}px)` : '100%' }}
+        style={{ width: isPc ? `calc(100% - ${base.sideBarWidth}px - ${queueOpen ? WRITING_QUEUE_WIDTH : 0}px)` : '100%' }}
         className={`flex !transition-all duration-300 overflow-y-hidden w-full flex-col gap-y-1 bg-secondbackground`}
       >
         {/* nav bar  */}
@@ -207,6 +213,22 @@ export const CommonLayout = observer(({ children, header }: { children?: React.R
                     </Button>
                   </Link>
                 </Badge>}
+                {isPc && (
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="light"
+                    onPress={() => base.toggleWritingQueue()}
+                    title={t('writing-queue')}
+                  >
+                    <Icon
+                      className={base.writingQueueOpen.value ? 'text-primary' : 'text-default-600'}
+                      icon="hugeicons:task-01"
+                      width="22"
+                      height="22"
+                    />
+                  </Button>
+                )}
                 <BlinkoNotification />
               </div>
             </div>
@@ -229,6 +251,10 @@ export const CommonLayout = observer(({ children, header }: { children?: React.R
         <MobileNavBar onItemClick={() => setisOpen(false)} />
         <BlinkoRightClickMenu />
       </main>
+        );
+      })()}
+
+      {isPc && base.writingQueueOpen.value && <WritingQueuePanel />}
     </div>
   );
 });

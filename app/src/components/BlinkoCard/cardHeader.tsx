@@ -210,6 +210,22 @@ export const CardHeader = observer(({ blinkoItem, blinko, isShareMode, isReadOnl
           />
         )}
 
+        {/* Mark as "to write later" — adds/removes it from the writing-queue panel */}
+        {!isShareMode && !isReadOnly && !blinkoItem.isRecycle && (
+          <Tooltip content={(blinkoItem.metadata as any)?.pendingWrite ? t('remove-from-writing-queue') : t('mark-to-write')} delay={1000}>
+            <Icon
+              icon={(blinkoItem.metadata as any)?.pendingWrite ? 'hugeicons:task-done-01' : 'hugeicons:task-add-01'}
+              width={iconSize}
+              height={iconSize}
+              className={`group-hover/card:opacity-100 group-hover/card:translate-x-0 ml-2 cursor-pointer hover:text-primary ${(blinkoItem.metadata as any)?.pendingWrite ? 'text-primary opacity-100' : 'text-desc opacity-0'}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                blinko.togglePendingWrite(blinkoItem);
+              }}
+            />
+          </Tooltip>
+        )}
+
         {/* Trash/Recycle bin button */}
         {!isShareMode && !isReadOnly && (
           <Tooltip content={blinkoItem.isRecycle ? t('delete') : t('trash')} delay={1000}>

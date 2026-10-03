@@ -80,6 +80,11 @@ export class BaseStore implements Store {
   currentQuery = {};
   currentTitle = '';
   documentHeight = 0;
+  // Desktop writing-queue side panel (notes flagged "to write later"). Persisted.
+  writingQueueOpen = new StorageState<boolean>({ key: 'writingQueueOpen', default: false });
+  toggleWritingQueue() {
+    this.writingQueueOpen.save(!this.writingQueueOpen.value);
+  }
   isSideBarActive(routerInfo: any, currentRouter: any) {
     const pathname = routerInfo.pathname;
     const path = routerInfo.searchParams?.get ? routerInfo.searchParams.get('path') : routerInfo.query?.path;
