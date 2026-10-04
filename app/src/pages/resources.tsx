@@ -1,13 +1,13 @@
 import { RootStore } from "@/store";
 import { ResourceStore } from "@/store/resourceStore";
 import { observer } from "mobx-react-lite";
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useState } from "react";
 import { ScrollArea } from "@/components/Common/ScrollArea";
 import { Icon } from '@/components/Common/Iconify/icons';
 import { useTranslation } from "react-i18next";
 import { DragDropContext, Droppable } from 'react-beautiful-dnd-next';
 import { toJS } from "mobx";
-import { MemoizedResourceItem } from "@/components/BlinkoResource/ResourceItem";
+import { MemoizedResourceItem, ResourceGridItem } from "@/components/BlinkoResource/ResourceItem";
 import { ResourceMultiSelectPop } from "@/components/BlinkoResource/ResourceMultiSelectpop";
 import { Breadcrumbs, BreadcrumbItem, Button } from "@heroui/react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -25,6 +25,16 @@ const Page = observer(() => {
   }, [resourceStore.blinko.resourceList.value]);
 
   const selectedItems = resourceStore.selectedItems;
+
+  // List vs grid view, remembered across sessions.
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>(
+    () => (localStorage.getItem('blinko-resource-view') as 'list' | 'grid') || 'list'
+  );
+  const toggleViewMode = () => {
+    const next = viewMode === 'list' ? 'grid' : 'list';
+    setViewMode(next);
+    localStorage.setItem('blinko-resource-view', next);
+  };
 
   const handleMoveSelectedToParent = useCallback(async () => {
     if (!resourceStore.currentFolder) return;
@@ -96,6 +106,16 @@ const Page = observer(() => {
             </div>
 
             <div className="flex items-center gap-2 mt-2 ">
+              <Button
+                size="sm"
+                variant="bordered"
+                isIconOnly
+                onPress={toggleViewMode}
+                title={viewMode === 'list' ? t('grid-view') : t('list-view')}
+              >
+                <Icon icon={viewMode === 'list' ? 'material-symbols:grid-view-outline' : 'material-symbols:view-list-outline'} className="w-5 h-5" />
+              </Button>
+
               <motion.div
                 initial={{ x: 20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
@@ -180,7 +200,20 @@ const Page = observer(() => {
             emptyMessage={t('no-resources-found')}
           />
           <PhotoProvider>
-            {resources.length > 0 && (
+            {resources.length > 0 && viewMode === 'grid' && (
+              <div className="py-2 min-h-[200px] grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {resources.map((item) => (
+                  <ResourceGridItem
+                    key={item.isFolder ? `folder-${item.folderName}` : `file-${item.id}`}
+                    item={item}
+                    isSelected={selectedItems.has(item.id!)}
+                    onSelect={resourceStore.toggleSelect}
+                    onFolderClick={(folder) => resourceStore.navigateToFolder(folder, navigate)}
+                  />
+                ))}
+              </div>
+            )}
+            {resources.length > 0 && viewMode === 'list' && (
               <Droppable droppableId="resources">
                 {(provided, snapshot) => (
                   <div

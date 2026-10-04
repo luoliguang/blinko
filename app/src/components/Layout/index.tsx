@@ -65,6 +65,12 @@ export const CommonLayout = observer(({ children, header }: { children?: React.R
     });
   }, []);
 
+  // Keep the writing-queue count fresh so the navbar badge is correct even when the
+  // panel is closed. Refreshes whenever notes change (updateTicker).
+  useEffect(() => {
+    if (isPc) blinkoStore.pendingWriteList.call();
+  }, [isPc, blinkoStore.updateTicker]);
+
 
   if (!isClient) return <></>;
 
@@ -213,19 +219,27 @@ export const CommonLayout = observer(({ children, header }: { children?: React.R
                 </Badge>}
                 {isPc && (
                   <Tooltip content={t('writing-queue')} placement="bottom" delay={300}>
-                    <Button
-                      isIconOnly
+                    <Badge
                       size="sm"
-                      variant="light"
-                      onPress={() => base.toggleWritingQueue()}
+                      className="shrink-0"
+                      content={blinkoStore.pendingWriteList.value?.length || null}
+                      color="primary"
+                      isInvisible={!blinkoStore.pendingWriteList.value?.length}
                     >
-                      <Icon
-                        className={base.writingQueueOpen.value ? 'text-primary' : 'text-default-600'}
-                        icon="hugeicons:task-01"
-                        width="22"
-                        height="22"
-                      />
-                    </Button>
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="light"
+                        onPress={() => base.toggleWritingQueue()}
+                      >
+                        <Icon
+                          className={base.writingQueueOpen.value ? 'text-primary' : 'text-default-600'}
+                          icon="hugeicons:task-01"
+                          width="22"
+                          height="22"
+                        />
+                      </Button>
+                    </Badge>
                   </Tooltip>
                 )}
                 <BlinkoNotification />

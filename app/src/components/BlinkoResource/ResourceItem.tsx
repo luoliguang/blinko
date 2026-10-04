@@ -90,6 +90,61 @@ export const ResourceItemPreview = ({
   );
 };
 
+// Grid / gallery tile for the resources grid view. Reuses ImageThumbnailRender
+// (which fetches a backend ?thumbnail=true, so it's light) and the page-level
+// PhotoProvider for the lightbox. No drag-reorder here — the grid is for browsing.
+export const ResourceGridItem = observer(({ item, isSelected, onSelect, onFolderClick }: {
+  item: ResourceType;
+  isSelected: boolean;
+  onSelect: (id: number) => void;
+  onFolderClick: (folderName: string) => void;
+}) => {
+  const resourceStore = RootStore.Get(ResourceStore);
+  const isImage =
+    item.type?.startsWith('image/') ||
+    /\.(jpg|jpeg|png|gif|bmp|tiff|ico|webp)$/i.test(item.name || '');
+  const handleContextMenu = useCallback(() => resourceStore.setContextMenuResource(_.cloneDeep(item)), [item, resourceStore]);
+  const displayName = useMemo(() => (item.isFolder ? item.folderName : item.name?.replace(/\.[^.]+$/, '')) || item.name, [item]);
+
+  const base = 'group relative rounded-lg overflow-hidden bg-background border border-default-100 hover:border-default-300 !transition-all';
+
+  if (item.isFolder) {
+    return (
+      <div
+        className={`${base} cursor-pointer flex flex-col items-center justify-center aspect-square p-3`}
+        onClick={() => onFolderClick(item.folderName || '')}
+        onContextMenu={handleContextMenu}
+      >
+        <Icon icon="material-symbols:folder" className="w-14 h-14 text-yellow-500" />
+        <span className="text-xs mt-1 truncate max-w-full px-1">{displayName}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className={base} onContextMenu={handleContextMenu}>
+      <div className={`absolute top-1.5 left-1.5 z-10 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} !transition-all`}>
+        <Checkbox isSelected={isSelected} onChange={() => onSelect(item.id!)} />
+      </div>
+      <div className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 !transition-all">
+        <ResourceContextMenu onTrigger={handleContextMenu} />
+      </div>
+      <div className="aspect-square w-full flex items-center justify-center bg-default-100 overflow-hidden">
+        {isImage ? (
+          <PhotoView src={getBlinkoEndpoint(`${item.path}?token=${RootStore.Get(UserStore).tokenData.value?.token}`)}>
+            <div className="w-full h-full cursor-pointer">
+              <ImageThumbnailRender src={item.path} className="!w-full !h-full object-cover" />
+            </div>
+          </PhotoView>
+        ) : (
+          <FileIcons path={item.path} size={48} />
+        )}
+      </div>
+      <div className="p-2 text-xs truncate" title={displayName}>{displayName}</div>
+    </div>
+  );
+});
+
 interface ResourceItemProps {
   item: ResourceType;
   index: number;

@@ -5,6 +5,8 @@
   "resources": "Resources",
   "archived": "Archived",
   "shared-with-me": "Shared with me",
+  "grid-view": "Grid view",
+  "list-view": "List view",
   "writing-queue": "Writing queue",
   "writing-queue-empty": "Nothing queued to write. Tap \"Mark to write\" on a card to add it here.",
   "mark-to-write": "Mark to write",

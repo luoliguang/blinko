@@ -16,6 +16,9 @@ import { NoteType } from '@shared/lib/types';
 import { Icon } from '@/components/Common/Iconify/icons';
 import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core';
 import { useDragCard, DraggableBlinkoCard } from '@/hooks/useDragCard';
+import { Avatar } from '@heroui/react';
+import { getBlinkoEndpoint } from '@/lib/blinkoEndpoint';
+import { UserStore } from '@/store/user';
 
 interface TodoGroup {
   displayDate: string;
@@ -58,6 +61,22 @@ const Home = observer(() => {
       return blinko.blinkoList;
     }
   }, [isNotesView, isTodoView, isArchivedView, isTrashView, isSharedView, isAllView, blinko]);
+
+  // "Shared with me" can be filtered down to a single sharer.
+  const [sharedByFilter, setSharedByFilter] = useState<number | null>(null);
+  const sharedOwners = useMemo(() => {
+    if (!isSharedView) return [] as any[];
+    const map = new Map<number, any>();
+    (blinko.sharedWithMeList.value ?? []).forEach((n: any) => {
+      if (n.owner && !map.has(n.owner.id)) map.set(n.owner.id, n.owner);
+    });
+    return Array.from(map.values());
+  }, [isSharedView, blinko.sharedWithMeList.value]);
+  const avatarSrc = (image?: string | null) => {
+    if (!image) return undefined;
+    const token = RootStore.Get(UserStore).tokenData.value?.token;
+    return getBlinkoEndpoint(image + (token ? `?token=${token}` : ''));
+  };
 
   // Use drag card hook only for non-todo views
   const { localNotes, sensors, setLocalNotes, handleDragStart, handleDragEnd, handleDragOver } = useDragCard({
@@ -187,6 +206,26 @@ const Home = observer(() => {
             </div>
           ) : (
             <>
+              {isSharedView && sharedOwners.length > 1 && (
+                <div className="flex items-center gap-2 flex-wrap mb-3 px-1">
+                  <div
+                    className={`cursor-pointer px-3 py-1 rounded-full text-xs font-medium !transition-all ${!sharedByFilter ? 'bg-primary text-primary-foreground' : 'bg-default-100 hover:bg-default-200'}`}
+                    onClick={() => setSharedByFilter(null)}
+                  >
+                    {t('total')}
+                  </div>
+                  {sharedOwners.map((owner) => (
+                    <div
+                      key={owner.id}
+                      className={`cursor-pointer flex items-center gap-1.5 pl-1 pr-3 py-1 rounded-full text-xs font-medium !transition-all ${sharedByFilter === owner.id ? 'bg-primary text-primary-foreground' : 'bg-default-100 hover:bg-default-200'}`}
+                      onClick={() => setSharedByFilter(sharedByFilter === owner.id ? null : owner.id)}
+                    >
+                      <Avatar src={avatarSrc(owner.image)} name={owner.nickname || owner.name} className="w-5 h-5 text-[10px] shrink-0" />
+                      <span className="truncate max-w-[100px]">{owner.nickname || owner.name}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
@@ -203,7 +242,7 @@ const Home = observer(() => {
                   className="card-masonry-grid"
                   columnClassName="card-masonry-grid_column">
                   {
-                    localNotes?.map((i, index) => {
+                    (isSharedView && sharedByFilter ? localNotes?.filter((n: any) => n.owner?.id === sharedByFilter) : localNotes)?.map((i, index) => {
                       const showInsertLine = insertPosition === i.id && activeId !== i.id;
                       return (
                         <DraggableBlinkoCard

@@ -4,6 +4,8 @@
   "resources": "资源",
   "archived": "归档",
   "shared-with-me": "分享给我",
+  "grid-view": "网格视图",
+  "list-view": "列表视图",
   "writing-queue": "待写清单",
   "writing-queue-empty": "还没有待写的选题。在卡片上点「标记待写」把想写的日记加进来。",
   "mark-to-write": "标记待写",
