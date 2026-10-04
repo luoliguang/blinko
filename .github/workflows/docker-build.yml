@@ -40,6 +40,11 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Aliyun ACR rejects the OCI provenance/SBOM attestation manifests buildx
+          # adds by default ("unknown manifest class for application/vnd.oci.empty.v1+json"),
+          # so disable them and push a plain Docker image.
+          provenance: false
+          sbom: false
           # Reuse layers across runs via the GitHub Actions cache. Unchanged base/
           # dependency layers keep the same digest, so ACR already has them and the
           # cross-border push only uploads the layer that actually changed.
