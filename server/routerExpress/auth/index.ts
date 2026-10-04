@@ -5,6 +5,7 @@ import { prisma } from '../../prisma';
 import { authenticator } from 'otplib';
 import { getGlobalConfig } from '../../routerTrpc/config';
 import { verifyToken, generateToken, generateApiToken } from '../../lib/helper';
+import { checkAuthRateLimit, recordAuthFailure, recordAuthSuccess } from '../../lib/authRateLimit';
 
 const router = express.Router();
 
@@ -75,6 +76,12 @@ router.get('/discord', logOAuthRequest('Discord'), async (req, res, next) => {
 
 
 router.post('/login', (req, res, next) => {
+  // Throttle brute-force: block a client that has failed too many times recently.
+  const limit = checkAuthRateLimit(req);
+  if (!limit.ok) {
+    res.setHeader('Retry-After', String(limit.retryAfterSec ?? 900));
+    return res.status(429).json({ error: 'Too many attempts, please try again later' });
+  }
   passport.authenticate('local', async (err, user, info) => {
     if (err) {
       return res.status(500).json({ error: 'Internal server error' });
@@ -82,11 +89,13 @@ router.post('/login', (req, res, next) => {
 
     if (!user) {
       if (info && info.requiresTwoFactor) {
+        // Correct password, awaiting 2FA — not a failed attempt.
         return res.status(200).json({
           requiresTwoFactor: true,
           userId: info.userId,
         });
       }
+      recordAuthFailure(req);
       return res.status(401).json({ error: info.message || 'Authentication failed' });
     }
 
@@ -95,6 +104,7 @@ router.post('/login', (req, res, next) => {
         user: user.id
       });
 
+      recordAuthSuccess(req);
       return res.json({
         user: {
           id: user.id,
@@ -114,6 +124,13 @@ router.post('/login', (req, res, next) => {
 
 router.post('/verify-2fa', async (req: any, res) => {
   try {
+    // Throttle brute-force of the 6-digit 2FA code (same limiter as /login).
+    const limit = checkAuthRateLimit(req);
+    if (!limit.ok) {
+      res.setHeader('Retry-After', String(limit.retryAfterSec ?? 900));
+      return res.status(429).json({ error: 'Too many attempts, please try again later' });
+    }
+
     const userId = req.body.userId;
 
     if (!userId || !req.body.code) {
@@ -145,8 +162,10 @@ router.post('/verify-2fa', async (req: any, res) => {
     });
 
     if (!isValidToken) {
+      recordAuthFailure(req);
       return res.status(401).json({ error: 'Invalid verification code' });
     }
+    recordAuthSuccess(req);
 
     const token = await generateToken(user, true);
     const apiToken = await generateApiToken({ id: user.id, name: user.name ?? '', role: user.role });
