@@ -6,17 +6,21 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 const host = process.env.TAURI_DEV_HOST || '0.0.0.0';
 const EXPRESS_PORT = 1111;
-const isDev = process.env.NODE_ENV === 'development';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    react(), 
+    react(),
     tailwindcss(),
-    // PWA: Only enabled in production, disabled in development to avoid caching issues
-    ...(!isDev && !process.env.DISABLE_PWA ? [
+    // Keep the plugin loaded in all modes so the `virtual:pwa-register` import
+    // always resolves (usePwaAutoUpdate imports it). `disable` fully turns it off
+    // when DISABLE_PWA is set; `devOptions.enabled: false` keeps the service worker
+    // off in development (no dev caching), while the virtual module stays a no-op.
+    ...[
       VitePWA({
-        // Disable in development mode
+        disable: !!process.env.DISABLE_PWA,
+        // No service worker in development (avoids caching issues); virtual module
+        // still resolves to a no-op so dev startup and imports work.
         devOptions: {
           enabled: false
         },
@@ -119,7 +123,7 @@ export default defineConfig({
           ],
         },
       })
-    ] : [])
+    ]
   ],
   resolve: {
     alias: {
