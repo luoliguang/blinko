@@ -1,4 +1,6 @@
 
+> 🔧 这是 [Blinko](https://github.com/blinko-space/blinko) 的个人定制 fork，增加了待写清单、评论飞书通知、分享隐私优化等自用功能。基于 GPL-3.0，与上游一致。
+
 <img style="border-radius:20px;margin-bottom:20px" src="./app/public/home.png" alt="Blinko" />
 
 <h1 align="center">Blinko</h1>

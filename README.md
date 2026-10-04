@@ -1,4 +1,6 @@
 
+> 🔧 This is a personal fork of [Blinko](https://github.com/blinko-space/blinko) with self-hosting tweaks (writing queue, Feishu comment notifications, share-privacy improvements, and more). Licensed under GPL-3.0, same as upstream.
+
 <img style="border-radius:20px;margin-bottom:20px" src="./app/public/home.png" alt="Blinko" />
 
 <h1 align="center">Blinko</h1>
