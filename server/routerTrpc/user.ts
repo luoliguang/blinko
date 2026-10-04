@@ -9,6 +9,18 @@ import { generateTOTP, generateTOTPQRCode, verifyTOTP, generateApiToken } from "
 import { deleteNotes } from './note';
 import { createSeed } from '@prisma/seedData';
 
+// Registration is allowed only when the global `isAllowRegister` config is
+// explicitly true. Anything else — missing, false, or a malformed/stringified
+// value — denies. This default-deny is safer than the old `=== false` check,
+// which let any non-boolean value through, and it reads the global row (userId
+// null) explicitly so a stray per-user row can't flip the decision.
+const isRegistrationAllowed = async (): Promise<boolean> => {
+  const row = (await prisma.config.findFirst({ where: { key: 'isAllowRegister', userId: null } }))
+    ?? (await prisma.config.findFirst({ where: { key: 'isAllowRegister' } }));
+  const value = (row?.config as any)?.value;
+  return value === true || value === 'true';
+};
+
 export const userRouter = router({
   list: authProcedure.use(superAdminAuthMiddleware)
     .meta({
@@ -209,13 +221,11 @@ export const userRouter = router({
         if (count == 0) {
           return true
         } else {
-          const res = await prisma.config.findFirst({ where: { key: 'isAllowRegister' } })
-          //@ts-ignore
-          return res?.config.value === true
+          return await isRegistrationAllowed()
         }
       } catch (error) {
         console.log(error, 'canRegister error')
-        return true
+        return false
       }
     }),
   register: publicProcedure
@@ -260,11 +270,9 @@ export const userRouter = router({
           await createSeed(res.id)
           return true
         } else {
-          const config = await prisma.config.findFirst({ where: { key: 'isAllowRegister' } })
-          //@ts-ignore
-          if (config?.config?.value === false || !config) {
+          if (!(await isRegistrationAllowed())) {
             throw new TRPCError({
-              code: 'INTERNAL_SERVER_ERROR',
+              code: 'FORBIDDEN',
               message: 'not allow register',
             });
           } else {
