@@ -18,6 +18,7 @@ import { UserStore } from '@/store/user';
 import { getTokenData, setNavigate } from '@/components/Auth/auth-client';
 import { BlinkoStore } from '@/store/blinkoStore';
 import { useAndroidShortcuts } from '@/lib/hooks';
+import { usePwaAutoUpdate } from '@/lib/usePwaAutoUpdate';
 import { useQuickaiHotkey } from '@/hooks/useQuickaiHotkey';
 import { useInitialHotkeySetup } from '@/hooks/useInitialHotkeySetup';
 import { isInTauri, isDesktop } from "@/lib/tauriHelper";
@@ -260,6 +261,10 @@ function App() {
   
   // Initialize Android shortcuts handler
   useAndroidShortcuts();
+
+  // Check for a new frontend build whenever the app regains focus, so a long-open
+  // tab doesn't keep running stale code (autoUpdate then reloads on a new version).
+  usePwaAutoUpdate();
 
   // Initialize hotkey setup for desktop app only
   if (isDesktop()) {

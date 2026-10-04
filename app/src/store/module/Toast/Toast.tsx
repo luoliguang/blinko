@@ -136,6 +136,25 @@ export class ToastPlugin implements Store {
   error(str: string) {
     toast.error(this.splitTextIntoLines(str, 60))
   };
+  // A persistent toast telling the user a new app version is ready, with a button
+  // to apply it (reload). Used when they have an unsaved draft so we don't reload
+  // from under them. Fixed id so repeated checks don't stack duplicate toasts.
+  updateAvailable(onConfirm: () => void) {
+    toast((t) => (
+      <span className="flex items-center gap-3">
+        <span>{i18n.t('new-version-available')}</span>
+        <button
+          className="text-primary font-semibold shrink-0"
+          onClick={() => {
+            toast.dismiss(t.id);
+            onConfirm();
+          }}
+        >
+          {i18n.t('refresh')}
+        </button>
+      </span>
+    ), { duration: Infinity, id: 'pwa-update' });
+  };
   // A toast with an inline "Undo" button, for reversible actions like moving to trash.
   undoable(str: string, onUndo: () => void | Promise<void>, duration = 5000) {
     toast((t) => (

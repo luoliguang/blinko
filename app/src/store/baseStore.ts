@@ -200,6 +200,8 @@ export class BaseStore implements Store {
         this.currentTitle = 'resources';
       } else if (searchParams.get('path') == 'trash') {
         this.currentTitle = 'trash';
+      } else if (searchParams.get('path') == 'shared') {
+        this.currentTitle = 'shared-with-me';
       } else if (location.pathname == '/plugin') {
         this.currentTitle = 'plugin';
       } else if (location.pathname == '/') {

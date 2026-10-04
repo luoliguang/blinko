@@ -20,8 +20,10 @@ export default defineConfig({
         devOptions: {
           enabled: false
         },
-        // Auto update service worker when new version is available
-        registerType: 'autoUpdate',
+        // Prompt mode: a new build installs but WAITS instead of reloading on its
+        // own, so the app can hold off while the user has an unsaved draft and let
+        // them refresh when ready (see usePwaAutoUpdate).
+        registerType: 'prompt',
         includeAssets: ['icons/Square*.png'],
         manifest: {
           name: 'Blinko',
