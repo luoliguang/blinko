@@ -55,11 +55,23 @@ export const followsRouter = router({
       data: z.any()
     }))
     .mutation(async ({ ctx, input }) => {
-      return await prisma.$transaction(async (tx) => {
+      // Validate the URLs and reachability BEFORE touching the DB, and surface a
+      // clean error instead of a raw 500 when the target isn't a reachable Blinko site.
+      try {
         input.siteUrl = new URL(input.siteUrl).origin;
         input.mySiteUrl = new URL(input.mySiteUrl).origin;
+      } catch {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid site URL' });
+      }
+      let siteInfo: any;
+      try {
+        siteInfo = await axios.get(input.siteUrl + '/api/v1/public/site-info', { params: { id: null }, timeout: 10000 });
+      } catch {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Cannot reach that Blinko site. Please check the URL.' });
+      }
+
+      return await prisma.$transaction(async (tx) => {
         const followerId = ctx.id;
-        const siteInfo = await axios.get(input.siteUrl + '/api/v1/public/site-info', { params: { id: null } });
 
         // Check if already following
         const existingFollow = await tx.follows.findFirst({
@@ -93,12 +105,18 @@ export const followsRouter = router({
           },
         });
 
-        await axios.post(input.siteUrl + '/api/v1/follows/follow-from', {
-          mySiteAccountId: siteInfo?.data?.id,
-          siteUrl: input.mySiteUrl,
-          siteName: mySiteInfo?.nickname ?? mySiteInfo?.name,
-          siteAvatar: input.mySiteUrl + mySiteInfo?.image,
-        });
+        // Notify the remote site that we now follow it. Non-fatal: if it can't be
+        // reached, we still keep our own following record (one-sided follow).
+        try {
+          await axios.post(input.siteUrl + '/api/v1/follows/follow-from', {
+            mySiteAccountId: siteInfo?.data?.id,
+            siteUrl: input.mySiteUrl,
+            siteName: mySiteInfo?.nickname ?? mySiteInfo?.name,
+            siteAvatar: input.mySiteUrl + mySiteInfo?.image,
+          }, { timeout: 10000 });
+        } catch (e) {
+          console.log('follow-from notify failed:', e);
+        }
 
         RecommandJob.RunTask()
 

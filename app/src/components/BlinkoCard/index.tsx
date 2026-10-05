@@ -69,8 +69,9 @@ export const BlinkoCard = observer(({ blinkoItem, account, isShareMode = false, 
   const handleClick = () => {
     if (blinko.isMultiSelectMode) {
       blinko.onMultiSelectNote(blinkoItem.id!);
-    } else if (blinkoItem.isBlog && !isShareMode) {
-      // Read-only shared notes can still open the fullscreen viewer (preview mode)
+    } else if (blinkoItem.isBlog) {
+      // Open the fullscreen viewer. In share mode (hub / public share) it opens
+      // read-only so visitors can read the full content but can't edit.
       setIsFullscreenEditorOpen(true);
       blinko.fullscreenEditorNoteId = blinkoItem.id!;
     }
@@ -108,7 +109,7 @@ export const BlinkoCard = observer(({ blinkoItem, account, isShareMode = false, 
         blinkoItem={blinkoItem}
         isOpen={isFullscreenEditorOpen}
         onClose={() => setIsFullscreenEditorOpen(false)}
-        isReadOnly={isReadOnly}
+        isReadOnly={isReadOnly || isShareMode}
       />
 
       {(() => {
