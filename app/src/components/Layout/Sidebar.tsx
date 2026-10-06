@@ -73,7 +73,7 @@ export const Sidebar = observer(({ onItemClick }: SidebarProps) => {
               className={`opacity-0 group-hover/sidebar:opacity-100 ml-auto ${!base.isSidebarCollapsed ? 'group-hover/sidebar:-translate-x-1 ' : 'opacity-100 translate-x-0'}`}
               onPress={base.toggleSidebar}
             >
-              <Icon icon={base.isSidebarCollapsed ? 'mdi:chevron-right' : 'mdi:chevron-left'} width="20" height="20" />
+              <Icon icon={base.isSidebarCollapsed ? 'tabler:chevron-right' : 'tabler:chevron-left'} width="20" height="20" />
             </Button>
           ) : (
             <Button

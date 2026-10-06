@@ -53,7 +53,7 @@ export const WritingQueuePanel = observer(() => {
       />
       <div className="flex items-center justify-between px-4 h-16 min-h-16 border-b border-divider">
         <div className="flex items-center gap-2">
-          <Icon icon="hugeicons:task-01" width="20" height="20" className="text-primary" />
+          <Icon icon="mdi:clipboard-text-outline" width="20" height="20" className="text-primary" />
           <span className="font-bold">{t('writing-queue')}</span>
           {items.length > 0 && <span className="text-xs text-desc">({items.length})</span>}
         </div>
@@ -65,7 +65,7 @@ export const WritingQueuePanel = observer(() => {
       <div className="flex-1 overflow-y-auto hide-scrollbar px-3 py-3">
         {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center text-desc gap-2 px-4">
-            <Icon icon="hugeicons:task-done-01" width="36" height="36" className="opacity-40" />
+            <Icon icon="material-symbols:check-circle-outline" width="36" height="36" className="opacity-40" />
             <span className="text-sm">{t('writing-queue-empty')}</span>
           </div>
         ) : (

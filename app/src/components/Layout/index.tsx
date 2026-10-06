@@ -234,7 +234,7 @@ export const CommonLayout = observer(({ children, header }: { children?: React.R
                       >
                         <Icon
                           className={base.writingQueueOpen.value ? 'text-primary' : 'text-default-600'}
-                          icon="hugeicons:task-01"
+                          icon="mdi:clipboard-text-outline"
                           width="22"
                           height="22"
                         />

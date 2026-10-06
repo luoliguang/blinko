@@ -223,7 +223,7 @@ export const CardHeader = observer(({ blinkoItem, blinko, isShareMode, isReadOnl
               }}
             >
               <Icon
-                icon={(blinkoItem.metadata as any)?.pendingWrite ? 'hugeicons:task-done-01' : 'hugeicons:task-add-01'}
+                icon={(blinkoItem.metadata as any)?.pendingWrite ? 'mdi:check-circle' : 'mdi:clipboard-text-outline'}
                 width={iconSize}
                 height={iconSize}
               />
