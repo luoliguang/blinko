@@ -90,7 +90,7 @@ export const BlinkoFollowDialog = observer(({ onConfirm }: { onConfirm: () => vo
         value={store.siteUrl}
         onChange={(e) => (store.siteUrl = e.target.value)}
         label={t('site-url')}
-        placeholder={'https://www.blinko.com'}
+        placeholder={'https://blinko.space'}
         endContent={
           <div className="flex items-center gap-2">
             <Button
