@@ -32,9 +32,13 @@ export const followsRouter = router({
           value: true
         }
       })
-      const recommandList = res?.value?.[String(ctx.id)] as RecommandListType
-      // console.log(recommandList, 'recommand_list')
-      return recommandList.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).filter(item => item.content.includes(searchText))
+      // The cache may have no entry for this account yet (e.g. just followed a site
+      // and the aggregation job hasn't run, or a fetch returned nothing). Default to
+      // an empty list instead of calling .sort() on undefined (which 500'd).
+      const recommandList = (res?.value?.[String(ctx.id)] as RecommandListType) ?? []
+      return [...recommandList]
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+        .filter(item => item.content.includes(searchText))
     }),
   // i want to follow a site
   follow: authProcedure
