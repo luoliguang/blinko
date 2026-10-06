@@ -314,6 +314,7 @@
   "edit-mode": "Toggle Edit Mode",
   "emoji": "Emoji",
   "export": "Export",
+  "export-markdown": "Export as Markdown",
   "file-type-error": "file type is error",
   "footnote-ref": "Footnote Ref",
   "fullscreen": "Toggle Fullscreen",

@@ -305,6 +305,72 @@ const handleDelete = async () => {
   PromiseCall(api.ai.embeddingDelete.mutate({ id: blinko.curSelectedNote?.id! }), { autoAlert: false })
 }
 
+const handleExportMarkdown = () => {
+  const blinko = RootStore.Get(BlinkoStore);
+  const note = blinko.curSelectedNote;
+  if (!note) return;
+
+  const origin = window.location.origin;
+  const typeLabel = note.type === NoteType.NOTE ? 'note' : note.type === 2 ? 'todo' : 'blinko';
+  const tagNames = (note.tags ?? []).map((t: any) => t.tag?.name).filter(Boolean);
+  const tagsYaml = tagNames.length > 0
+    ? 'tags:\n' + tagNames.map((n: string) => `  - ${n}`).join('\n')
+    : 'tags: []';
+
+  const frontMatter = [
+    '---',
+    `id: ${note.id ?? ''}`,
+    `type: ${typeLabel}`,
+    `created: ${note.createdAt ? new Date(note.createdAt).toISOString() : ''}`,
+    `updated: ${note.updatedAt ? new Date(note.updatedAt).toISOString() : ''}`,
+    tagsYaml,
+    '---',
+    '',
+  ].join('\n');
+
+  // Make relative /api/file/… paths absolute so images open offline
+  let content = note.content ?? '';
+  content = content.replace(
+    /(!\[[^\]]*\]\()(\/api\/file\/[^)]+)(\))/g,
+    (_, open, path, close) => `${open}${origin}${path}${close}`
+  );
+  content = content.replace(
+    /(<img\s[^>]*src=["'])(\/api\/file\/[^"']+)(["'][^>]*>)/g,
+    (_, open, path, close) => `${open}${origin}${path}${close}`
+  );
+
+  // Append attachments not already inlined in the content
+  const inlinePaths = new Set(
+    [...content.matchAll(/\/api\/file\/[^\s)"']+/g)].map(m => m[0])
+  );
+  const extra = (note.attachments ?? []).filter(
+    (a: any) => a.path && !inlinePaths.has(a.path)
+  );
+  const attachSection = extra.length > 0
+    ? '\n\n## Attachments\n\n' + extra.map((a: any) =>
+        `- [${a.name || a.path}](${origin}${a.path})`
+      ).join('\n')
+    : '';
+
+  const markdown = frontMatter + content + attachSection;
+
+  // Derive filename from first non-empty line, fallback to id
+  const firstLine = (note.content ?? '').split('\n')
+    .map((l: string) => l.trim()).find((l: string) => l.length > 0) ?? '';
+  const titleRaw = firstLine.replace(/^#+\s*/, '').replace(/^[-*]\s*/, '').slice(0, 60);
+  const titleSafe = titleRaw.replace(/[<>:"/\\|?*\x00-\x1f]/g, '-').trim() || `blinko-${note.id}`;
+
+  const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${titleSafe}.md`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
 const handleRelatedNotes = async () => {
   const blinko = RootStore.Get(BlinkoStore);
   const dialog = RootStore.Get(DialogStore);
@@ -429,6 +495,16 @@ export const AITagItem = observer(() => {
   );
 });
 
+export const ExportMarkdownItem = observer(() => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex items-start gap-2">
+      <Icon icon="tabler:markdown" width="20" height="20" />
+      <div>{t('export-markdown')}</div>
+    </div>
+  );
+});
+
 export const RelatedNotesItem = observer(() => {
   const { t } = useTranslation();
   return (
@@ -521,6 +597,10 @@ export const BlinkoRightClickMenu = observer(() => {
     </ContextMenuItem>
     ) : <></>}
 
+    <ContextMenuItem onClick={handleExportMarkdown}>
+      <ExportMarkdownItem />
+    </ContextMenuItem>
+
     {!isPc ? (
       <ContextMenuItem onClick={handleComment}>
         <CommentItem />
@@ -605,6 +685,10 @@ export const LeftCickMenu = observer(({ onTrigger, className }: { onTrigger: () 
           <PublicItem />  
         </DropdownItem>
       ) : <></>}
+
+      <DropdownItem key="ExportMarkdownItem" onPress={handleExportMarkdown}>
+        <ExportMarkdownItem />
+      </DropdownItem>
 
       {!isPc ? (
         <DropdownItem key="CommentItem" onPress={handleComment}>
