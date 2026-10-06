@@ -120,15 +120,27 @@ export class ResourceStore implements Store {
   navigateBack = async (navigate: any) => {
     if (!this.currentFolder) return;
 
+    const blinko = RootStore.Get(BlinkoStore);
+    const defaultFolder = (blinko.config.value?.localCustomPath || '')
+      .replace(/^\//, '').replace(/\/$/, '') || null;
+
+    // Don't navigate above the configured storage root
+    if (this.currentFolder === defaultFolder) return;
+
     const folders = this.currentFolder.split('/');
     folders.pop();
     const parentFolder = folders.join('/');
 
-    this.setCurrentFolder(parentFolder || null);
-    this.loadResources(parentFolder || undefined);
+    // Clamp: never go above the default folder
+    const targetFolder = defaultFolder && !parentFolder.startsWith(defaultFolder)
+      ? defaultFolder
+      : parentFolder || null;
 
-    if (parentFolder) {
-      await navigate(`/resources?folder=${encodeURIComponent(parentFolder)}`);
+    this.setCurrentFolder(targetFolder);
+    this.loadResources(targetFolder || undefined);
+
+    if (targetFolder) {
+      await navigate(`/resources?folder=${encodeURIComponent(targetFolder)}`);
     } else {
       await navigate('/resources');
     }
@@ -148,14 +160,26 @@ export class ResourceStore implements Store {
 
   use() {
     const [searchParams] = useSearchParams();
+    const blinko = RootStore.Get(BlinkoStore);
 
     useEffect(() => {
       const folder = searchParams.get('folder');
-      if (folder !== this.currentFolder) {
-        this.setCurrentFolder(folder);
-        this.loadResources(folder || undefined);
+      if (folder !== null) {
+        if (folder !== this.currentFolder) {
+          this.setCurrentFolder(folder);
+          this.loadResources(folder || undefined);
+        }
+        return;
       }
-    }, [searchParams]);
+      // No folder in URL: default to the configured storage path so the user
+      // lands directly on their files instead of navigating from root.
+      const defaultFolder = (blinko.config.value?.localCustomPath || '')
+        .replace(/^\//, '').replace(/\/$/, '') || null;
+      if (defaultFolder !== this.currentFolder) {
+        this.setCurrentFolder(defaultFolder);
+        this.loadResources(defaultFolder || undefined);
+      }
+    }, [searchParams, blinko.config.value?.localCustomPath]);
 
     useEffect(() => {
       this.loadResources(this.currentFolder || undefined);

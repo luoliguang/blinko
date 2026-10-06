@@ -49,8 +49,15 @@ const Page = observer(() => {
 
   const folderBreadcrumbs = useMemo(() => {
     if (!resourceStore.currentFolder) return [];
-    return ['Root', ...resourceStore.currentFolder.split('/')];
-  }, [resourceStore.currentFolder]);
+    const defaultFolder = (resourceStore.blinko.config.value?.localCustomPath || '')
+      .replace(/^\//, '').replace(/\/$/, '');
+    // Strip the default storage prefix so breadcrumbs start from the configured root
+    const relative = defaultFolder && resourceStore.currentFolder.startsWith(defaultFolder)
+      ? resourceStore.currentFolder.slice(defaultFolder.length).replace(/^\//, '')
+      : resourceStore.currentFolder;
+    const rootLabel = defaultFolder ? defaultFolder.split('/').pop() || 'Root' : 'Root';
+    return [rootLabel, ...relative.split('/').filter(Boolean)];
+  }, [resourceStore.currentFolder, resourceStore.blinko.config.value?.localCustomPath]);
 
   resourceStore.use();
 
