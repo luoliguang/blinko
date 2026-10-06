@@ -15,8 +15,13 @@ ENV npm_config_sharp_libvips_binary_host="https://npmmirror.com/mirrors/sharp-li
 ENV PRISMA_ENGINES_MIRROR="https://registry.npmmirror.com/-/binary/prisma"
 ENV PRISMA_SKIP_POSTINSTALL_GENERATE=true
 
-# Copy Project Files
-COPY . .
+# Copy manifests first so bun install is cached until deps actually change.
+# Any source-code edit after this point does NOT invalidate the install layer.
+COPY package.json bun.lock ./
+COPY app/package.json ./app/
+COPY server/package.json ./server/
+COPY shared/package.json ./shared/
+COPY blinko-types/package.json ./blinko-types/
 
 # Configure Mirror Based on USE_MIRROR Parameter
 RUN if [ "$USE_MIRROR" = "true" ]; then \
@@ -35,8 +40,12 @@ RUN if [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then \
         bun install --force @img/sharp-linux-arm64 --no-save; \
     fi
 
-# Install Dependencies and Build App
 RUN bun install --unsafe-perm
+
+# Copy remaining source files after install — this layer changes on every code edit
+# but the expensive bun install above stays cached.
+COPY . .
+
 RUN bunx prisma generate
 RUN bun run build:web
 RUN bun run build:seed
