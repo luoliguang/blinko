@@ -19,6 +19,7 @@ ENV PRISMA_SKIP_POSTINSTALL_GENERATE=true
 # Any source-code edit after this point does NOT invalidate the install layer.
 COPY package.json bun.lock ./
 COPY app/package.json ./app/
+COPY app/tauri-plugin-blinko/package.json ./app/tauri-plugin-blinko/
 COPY server/package.json ./server/
 COPY shared/package.json ./shared/
 COPY blinko-types/package.json ./blinko-types/
