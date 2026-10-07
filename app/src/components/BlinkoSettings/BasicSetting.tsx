@@ -293,8 +293,13 @@ export const BasicSetting = observer(() => {
           rightContent={<Switch
             thumbIcon={store.setRigster.loading.value ? <Icon icon="eos-icons:three-dots-loading" width="24" height="24" /> : null}
             isDisabled={store.setRigster.loading.value}
-            isSelected={user.canRegister.value}
+            isSelected={!!user.canRegister.value}
             onValueChange={async (checked) => {
+              // Only write on a real change. `canRegister.value` starts null on
+              // mount, so the Switch briefly flips uncontrolled→controlled and can
+              // emit a spurious onValueChange — this guard drops those events
+              // (and no-ops), which was silently resetting isAllowRegister to false.
+              if (checked === !!user.canRegister.value) return
               await store.setRigster.call(checked)
               user.canRegister.call()
             }}
