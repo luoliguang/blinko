@@ -278,7 +278,13 @@ export class FileService {
       if (attachmentPath) {
         await prisma.attachments.delete({ where: { id: attachmentPath.id } })
       }
-      await unlink(filepath);
+      try {
+        await unlink(filepath);
+      } catch (error: any) {
+        // File is already gone (orphaned 404 record): the DB row is what the user
+        // sees in Resources, so removing it is the goal. Don't fail on a missing file.
+        if (error?.code !== 'ENOENT') throw error;
+      }
     }
   }
 
