@@ -76,6 +76,10 @@ export const BasicSetting = observer(() => {
   }))
 
   useEffect(() => {
+    user.canRegister.call()
+  }, [])
+
+  useEffect(() => {
     store.webhookEndpoint = blinko.config.value?.webhookEndpoint ?? ''
   }, [blinko.config.value])
 
