@@ -40,7 +40,7 @@ RUN if [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then \
         bun install --force @img/sharp-linux-arm64 --no-save; \
     fi
 
-RUN bun install --unsafe-perm
+RUN bun install --unsafe-perm --ignore-scripts
 
 # Copy remaining source files after install — this layer changes on every code edit
 # but the expensive bun install above stays cached.
