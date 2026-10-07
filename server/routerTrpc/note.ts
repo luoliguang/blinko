@@ -1237,6 +1237,36 @@ export const noteRouter = router({
           console.log(err);
         }
 
+        // Clean up inline images the user removed from the body. Only delete an
+        // attachment that WAS referenced in the previous content, is NOT in the
+        // new content, and is NOT kept as a chip in the submitted list. This
+        // targets exactly "pasted into body, then deleted from body" and never
+        // touches chip-only files or images still referenced anywhere, so a
+        // content-only API edit can't accidentally wipe a note's attachments.
+        try {
+          const submittedPaths = new Set((attachments ?? []).map((i) => i.path));
+          const oldContent = existingNote?.content ?? '';
+          const linkedAttachments = await prisma.attachments.findMany({ where: { noteId: note.id } });
+          const orphaned = linkedAttachments.filter((a) =>
+            a.path &&
+            oldContent.includes(a.path) &&
+            !content.includes(a.path) &&
+            !submittedPaths.has(a.path)
+          );
+          for (const a of orphaned) {
+            try {
+              await FileService.deleteFile(a.path);
+            } catch (error) {
+              console.log('cleanup orphaned attachment error:', error);
+            }
+          }
+          if (orphaned.length) {
+            await prisma.attachments.deleteMany({ where: { id: { in: orphaned.map((a) => a.id) } } });
+          }
+        } catch (err) {
+          console.log('attachment cleanup failed:', err);
+        }
+
         if (config?.embeddingModelId) {
           AiService.embeddingUpsert({ id: note.id, content: note.content, type: 'update', createTime: note.createdAt!, updatedAt: note.updatedAt });
           for (const attachment of attachments) {
