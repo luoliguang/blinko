@@ -5,6 +5,7 @@ import { RootStore } from '@/store/root';
 import { useNavigate } from 'react-router-dom';
 import { BlinkoStore } from '@/store/blinkoStore';
 import { useEffect, useRef, useState, useMemo } from 'react';
+import { ReferencesContent } from './referencesContent';
 
 interface BlogContentProps {
   blinkoItem: Note & {
@@ -91,6 +92,7 @@ export const CardBlogBox = ({ blinkoItem, isExpanded }: BlogContentProps) => {
               })()}
             </div>
           )}
+        <ReferencesContent blinkoItem={blinkoItem as any} className="mt-2" />
       </div>
     </div>
   );
