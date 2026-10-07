@@ -133,12 +133,17 @@ export const configRouter = router({
           throw new Error('You are not allowed to update global config')
         }
         const matchedConfigs = await prisma.config.findMany({ where: { key } });
-        
+
         if (matchedConfigs.length > 0) {
-          const configToKeep = matchedConfigs[0];
-          updateResult = await prisma.config.update({ 
-            where: { id: configToKeep?.id }, 
-            data: { config: { type: typeof value, value } } 
+          // Keep the global (userId: null) row as the authoritative one and drop
+          // any stray per-user rows for this key. Global settings are read from
+          // the userId: null row, so writing to a per-user row here would leave
+          // the read seeing a stale global value (the bug behind the
+          // allow-register toggle not persisting).
+          const configToKeep = matchedConfigs.find((c) => c.userId == null) ?? matchedConfigs[0];
+          updateResult = await prisma.config.update({
+            where: { id: configToKeep?.id },
+            data: { config: { type: typeof value, value } }
           });
           
           if (matchedConfigs.length > 1) {
