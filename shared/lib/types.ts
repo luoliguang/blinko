@@ -76,7 +76,6 @@ export const ZConfigKey = z.union([
   z.literal('excludeEmbeddingTagId'),
   z.literal('rerankTopK'),
   z.literal('rerankScore'),
-  z.literal('isAllowRegister'),
   z.literal('objectStorage'),
   z.literal('s3AccessKeyId'),
   z.literal('s3AccessKeySecret'),
