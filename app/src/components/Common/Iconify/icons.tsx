@@ -1393,7 +1393,9 @@ const getIconData = (iconName: string) => {
   const collection = collections[collectionKey];
   
   if (!collection || !collection.icons || !collection.icons[name]) {
-    console.warn(`Icon "${name}" not found in "${prefix}" collection`);
+    // Missing local icons fall back to the Iconify CDN by design; only surface
+    // this in dev so production consoles aren't spammed on every fallback.
+    if (import.meta.env.DEV) console.warn(`Icon "${name}" not found in "${prefix}" collection`);
     return null;
   }
   
@@ -1422,7 +1424,7 @@ export const Icon = ({
   
   // If local icon not found, use Iconify as fallback
   if (!iconData) {
-    console.warn(`Local icon not found: ${icon}, using Iconify fallback`);
+    if (import.meta.env.DEV) console.warn(`Local icon not found: ${icon}, using Iconify fallback`);
     return <IconifyIcon 
       icon={icon}
       width={width}

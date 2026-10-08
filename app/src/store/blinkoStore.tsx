@@ -552,7 +552,7 @@ export class BlinkoStore implements Store {
     } else if (currentPath === 'shared') {
       await this.sharedWithMeList.callNextPage({});
     } else if (currentPath === 'all') {
-      this.noteList.resetAndCall({});
+      await this.noteList.callNextPage({});
     } else {
       await this.blinkoList.callNextPage({});
     }
