@@ -39,7 +39,5 @@ server/public
 .cursorrules
 PLANNING.md
 TASK.md
-app/
-tauri-plugin-blinko/
 android/
 .gradle/
