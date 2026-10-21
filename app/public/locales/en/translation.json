@@ -533,6 +533,8 @@
   "recommand": "Recommend",
   "has-todo": "Has TO-DO",
   "reference-by": "Reference By",
+  "read-stamp": "Read",
+  "unread": "Unread",
   "hide-notification": "Hide Notification",
   "search-settings": "Search Settings...",
   "this-operation-will-delete-the-selected-files-and-cannot-be-restored-please-confirm": "This operation will delete the selected files and cannot be restored. Please confirm",

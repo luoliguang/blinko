@@ -527,6 +527,8 @@
   "recommand": "推荐",
   "has-todo": "有待完成",
   "reference-by": "被引用",
+  "read-stamp": "已阅",
+  "unread": "未读",
   "hide-notification": "隐藏通知",
   "search-settings": "搜索设置...",
   "this-operation-will-delete-the-selected-files-and-cannot-be-restored-please-confirm": "此操作将删除所选文件，且无法恢复，请确认。",

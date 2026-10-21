@@ -122,9 +122,11 @@ export const noteRouter = router({
             isSharedNote: z.boolean().optional(),
             canEdit: z.boolean().optional(),
             isInternalShared: z.boolean().optional(),
+            readByMe: z.boolean().optional(),
             internalShares: z.array(z.object({
               accountId: z.number().optional(),
               canEdit: z.boolean().optional(),
+              readAt: z.date().nullable().optional(),
               account: z.object({
                 id: z.number(),
                 name: z.string(),
@@ -313,6 +315,11 @@ export const noteRouter = router({
           isSharedNote: !isOwner,            // this note was shared TO the current user
           // Current user's edit permission: owners always can; shared users only if granted
           canEdit: isOwner || (myShare ? myShare.canEdit : true),
+          // Read receipt: whether the current recipient has opened this shared note
+          readByMe: myShare ? myShare.readAt != null : false,
+          // Only the owner may see every recipient's share info (incl. read times);
+          // recipients get their own status via readByMe, not the full roster.
+          internalShares: isOwner ? note.internalShares : [],
         };
       });
     }),
@@ -691,9 +698,11 @@ export const noteRouter = router({
             isSharedNote: z.boolean().optional(),
             isInternalShared: z.boolean().optional(),
             canEdit: z.boolean().optional(),
+            readByMe: z.boolean().optional(),
             internalShares: z.array(z.object({
               accountId: z.number().optional(),
               canEdit: z.boolean().optional(),
+              readAt: z.date().nullable().optional(),
               account: z.object({
                 id: z.number(),
                 name: z.string(),
@@ -791,6 +800,9 @@ export const noteRouter = router({
         isSharedNote: !isOwner,
         // Current user's edit permission: owners always can; shared users only if granted
         canEdit: isOwner || (myShare ? myShare.canEdit : true),
+        readByMe: myShare ? myShare.readAt != null : false,
+        // Owner-only: full recipient roster with read times (recipients use readByMe).
+        internalShares: isOwner ? note.internalShares : [],
       };
     }),
   dailyReviewNoteList: authProcedure
@@ -1898,6 +1910,7 @@ export const noteRouter = router({
             }).nullable(),
             canEdit: z.boolean(),
             isSharedNote: z.boolean(),
+            readByMe: z.boolean().optional(),
             _count: z.object({
               comments: z.number(),
               histories: z.number(),
@@ -1944,7 +1957,8 @@ export const noteRouter = router({
               accountId: Number(ctx.id)
             },
             select: {
-              canEdit: true
+              canEdit: true,
+              readAt: true
             }
           },
           _count: {
@@ -1959,8 +1973,22 @@ export const noteRouter = router({
         owner: note.account,
         canEdit: note.internalShares[0]?.canEdit || false,
         isSharedNote: true,
+        readByMe: note.internalShares[0]?.readAt != null,
         internalShares: undefined,
       })));
+    }),
+  markInternalShareRead: authProcedure
+    .meta({ openapi: { method: 'POST', path: '/v1/note/mark-share-read', summary: 'Mark a note shared to me as read', protect: true, tags: ['Note'] } })
+    .input(z.object({ id: z.number() }))
+    .output(z.object({ ok: z.boolean() }))
+    .mutation(async function ({ input, ctx }) {
+      // Only the recipient can mark their own share row read, and only once.
+      // updateMany scoped to accountId makes it impossible to mark someone else's.
+      await prisma.noteInternalShare.updateMany({
+        where: { noteId: input.id, accountId: Number(ctx.id), readAt: null },
+        data: { readAt: new Date() },
+      });
+      return { ok: true };
     }),
   updateNotesOrder: authProcedure
     .meta({ openapi: { method: 'POST', path: '/v1/note/update-order', summary: 'Update notes order', protect: true, tags: ['Note'] } })

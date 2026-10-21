@@ -241,12 +241,13 @@ model noteHistory {
 }
 
 model noteInternalShare {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   noteId    Int
   accountId Int
-  canEdit   Boolean  @default(true)
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+  canEdit   Boolean   @default(true)
+  readAt    DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
 
   note    notes    @relation(fields: [noteId], references: [id], onDelete: Cascade)
   account accounts @relation(fields: [accountId], references: [id])
