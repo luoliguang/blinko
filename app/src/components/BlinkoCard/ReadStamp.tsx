@@ -41,6 +41,7 @@ export const ReadStamp = observer(({ blinkoItem }: { blinkoItem: any }) => {
         type="button"
         onClick={markRead}
         onPointerDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
         disabled={loading}
         className="absolute top-9 right-3 z-10 rounded-full border border-default-300 bg-background/80 px-3 py-1 text-xs font-medium text-default-600 shadow-sm backdrop-blur transition-colors hover:border-danger/60 hover:text-danger disabled:opacity-60"
       >
