@@ -7,8 +7,7 @@ import { Note } from '@shared/lib/types';
 import { ShowEditBlinkoModel } from "../BlinkoRightClickMenu";
 import { useMediaQuery } from "usehooks-ts";
 import { _ } from '@/lib/lodash';
-import { useState, useEffect, useRef } from "react";
-import { api } from "@/lib/trpc";
+import { useState } from "react";
 import { ReadStamp } from "./ReadStamp";
 import { CardBlogBox } from "./cardBlogBox";
 import { NoteContent } from "./noteContent";
@@ -52,19 +51,6 @@ export const BlinkoCard = observer(({ blinkoItem, account, isShareMode = false, 
 
   // Set isExpand flag to prevent drag when fullscreen editor is open for this note
   blinkoItem.isExpand = blinko.fullscreenEditorNoteId === blinkoItem.id;
-
-  // Read receipt: when a note shared TO me is shown, mark it read once so the
-  // owner (and I) can see the "已阅" stamp. Skipped in public share/hub mode.
-  const markedReadRef = useRef(false);
-  useEffect(() => {
-    if (isShareMode) return;
-    if (!(blinkoItem as any).isSharedNote || (blinkoItem as any).readByMe) return;
-    if (markedReadRef.current) return;
-    markedReadRef.current = true;
-    api.notes.markInternalShareRead.mutate({ id: blinkoItem.id! })
-      .then(() => { (blinkoItem as any).readByMe = true; })
-      .catch(() => { markedReadRef.current = false; });
-  }, [blinkoItem.id, (blinkoItem as any).isSharedNote, (blinkoItem as any).readByMe, isShareMode]);
 
   if (forceBlog) {
     blinkoItem.isBlog = true
