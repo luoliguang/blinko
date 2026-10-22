@@ -529,6 +529,7 @@
   "reference-by": "被引用",
   "read-stamp": "已阅",
   "mark-as-read": "标记已阅",
+  "click-to-unread": "点击取消已阅",
   "unread": "未读",
   "hide-notification": "隐藏通知",
   "search-settings": "搜索设置...",

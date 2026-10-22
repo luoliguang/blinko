@@ -20,26 +20,42 @@ export const ReadStamp = observer(({ blinkoItem }: { blinkoItem: any }) => {
   const label = t('read-stamp');
   const [loading, setLoading] = useState(false);
 
-  // Recipient side: this note was shared TO the current user.
+  // Recipient side: this note was shared TO the current user. The receipt is a
+  // toggle — click the button to mark read, click the stamp again to undo.
   if (blinkoItem.isSharedNote) {
-    if (blinkoItem.readByMe) {
-      return <div className={`pointer-events-none ${stampClass}`}>{label}</div>;
-    }
-    const markRead = async (e: React.MouseEvent) => {
+    const toggle = (read: boolean) => async (e: React.MouseEvent) => {
       e.stopPropagation();
       if (loading) return;
       setLoading(true);
+      const prev = blinkoItem.readByMe;
+      blinkoItem.readByMe = read;
       try {
-        await api.notes.markInternalShareRead.mutate({ id: blinkoItem.id! });
-        blinkoItem.readByMe = true;
+        await api.notes.markInternalShareRead.mutate({ id: blinkoItem.id!, read });
       } catch {
+        blinkoItem.readByMe = prev;
+      } finally {
         setLoading(false);
       }
     };
+    if (blinkoItem.readByMe) {
+      return (
+        <button
+          type="button"
+          title={t('click-to-unread')}
+          onClick={toggle(false)}
+          onPointerDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          disabled={loading}
+          className={`cursor-pointer ${stampClass}`}
+        >
+          {label}
+        </button>
+      );
+    }
     return (
       <button
         type="button"
-        onClick={markRead}
+        onClick={toggle(true)}
         onPointerDown={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}
         disabled={loading}

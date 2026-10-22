@@ -1978,15 +1978,15 @@ export const noteRouter = router({
       })));
     }),
   markInternalShareRead: authProcedure
-    .meta({ openapi: { method: 'POST', path: '/v1/note/mark-share-read', summary: 'Mark a note shared to me as read', protect: true, tags: ['Note'] } })
-    .input(z.object({ id: z.number() }))
+    .meta({ openapi: { method: 'POST', path: '/v1/note/mark-share-read', summary: 'Mark a note shared to me as read or unread', protect: true, tags: ['Note'] } })
+    .input(z.object({ id: z.number(), read: z.boolean().optional().default(true) }))
     .output(z.object({ ok: z.boolean() }))
     .mutation(async function ({ input, ctx }) {
-      // Only the recipient can mark their own share row read, and only once.
-      // updateMany scoped to accountId makes it impossible to mark someone else's.
+      // Only the recipient can toggle their own share row. updateMany scoped to
+      // accountId makes it impossible to change someone else's read state.
       await prisma.noteInternalShare.updateMany({
-        where: { noteId: input.id, accountId: Number(ctx.id), readAt: null },
-        data: { readAt: new Date() },
+        where: { noteId: input.id, accountId: Number(ctx.id) },
+        data: { readAt: input.read ? new Date() : null },
       });
       return { ok: true };
     }),
