@@ -1,5 +1,39 @@
 
-> 🔧 This is a personal fork of [Blinko](https://github.com/blinko-space/blinko) with self-hosting tweaks (writing queue, Feishu comment notifications, share-privacy improvements, and more). Licensed under GPL-3.0, same as upstream.
+> 🔧 **This is a personally maintained fork of [Blinko](https://github.com/blinko-space/blinko)**, self-hosted at [blinko.fangdutex.cn](https://blinko.fangdutex.cn). It tracks upstream regularly, and general fixes are sent back upstream as PRs. Licensed under GPL-3.0, same as upstream.
+>
+> Everything after "What this fork adds" is the original upstream README. Please report upstream issues to the [upstream repository](https://github.com/blinko-space/blinko/issues).
+
+## ✨ What this fork adds
+
+**Internal sharing & collaboration**
+- Notes shared with members are read-only by default, with opt-in edit access; read-only notes get a dedicated read-only UI and can still open in fullscreen preview
+- Cards show who a note is shared with / shared by, using a neutral count indicator instead of avatars so screenshots stay private
+- A "Shared with me" sidebar view with a shared-by filter
+- Read receipts: a shared note gets its "read" stamp only after the recipient clicks it, and recipients can turn this off
+- Comment visibility (public / private) and a searchable, sorted member list
+
+**Notifications**
+- Per-account personal webhooks (e.g. a Feishu bot) for comments and replies
+- Notifications jump to and highlight the commented note; the update webhook fires only on real content changes
+
+**Writing**
+- Writing queue: a desktop side panel for notes flagged to write later, editable in place
+- Configurable word count; drafts are kept when saving a note fails
+- Undo when moving notes to the trash
+- Export a single note as Markdown with front matter and absolute image URLs
+- Long (blog) cards show note references in the list view
+- Writing stats: streaks, daily average, weekday distribution, month-over-month change
+
+**Stability & security**
+- Rate-limited failed login and 2FA attempts (per IP)
+- The "allow registration" toggle is a global setting that survives refreshes, and the server denies registration by default
+- Fixed drag reordering that corrupted note order and hid notes
+- Inline images removed from a note are cleaned up on save; orphaned attachment records with missing files can be deleted
+- PWA updates prompt for a refresh when a draft exists, otherwise refresh seamlessly
+
+**Deployment**
+- GitHub Actions builds the Docker image with layer caching and pushes it to a private registry for server updates
+
 
 <img style="border-radius:20px;margin-bottom:20px" src="./app/public/home.png" alt="Blinko" />
 
