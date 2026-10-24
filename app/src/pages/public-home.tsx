@@ -1,6 +1,6 @@
 import { observer } from "mobx-react-lite";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMediaQuery } from "usehooks-ts";
 import { Button } from "@heroui/react";
@@ -24,9 +24,21 @@ function getTitle(content?: string) {
   return line.replace(/^#+\s*/, "").trim() || "";
 }
 
+function setMeta(name: string, content: string, property = false) {
+  const attr = property ? "property" : "name";
+  let el = document.head.querySelector(`meta[${attr}="${name}"]`) as HTMLMetaElement | null;
+  if (!el) {
+    el = document.createElement("meta");
+    el.setAttribute(attr, name);
+    document.head.appendChild(el);
+  }
+  el.content = content;
+}
+
 const PublicHome = observer(() => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isPc = useMediaQuery("(min-width: 768px)");
 
   const [site, setSite] = useState<{ name?: string; image?: string; description?: string } | null>(null);
@@ -40,14 +52,37 @@ const PublicHome = observer(() => {
     api.public.siteInfo.query({}).then(setSite).catch(() => {});
   }, []);
 
+  // This page is the site's public front door, so give it a real title and
+  // description for the browser tab, search engines, and link previews.
+  useEffect(() => {
+    if (!site?.name) return;
+    const title = t("public-site-title", { name: site.name });
+    const desc = site.description || t("public-cta-desc");
+    document.title = title;
+    setMeta("description", desc);
+    setMeta("og:title", title, true);
+    setMeta("og:description", desc, true);
+  }, [site, t]);
+
   const byCreatedDesc = (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+
+  // Open a note and reflect it in the URL so the view is shareable and survives reload.
+  const selectNote = (note: any) => {
+    setSelected(note);
+    setSearchParams({ note: String(note.id) });
+  };
 
   const loadPage = async (p: number) => {
     const list = await api.notes.publicList.mutate({ page: p, size: PAGE_SIZE });
-    setNotes((prev) => (p === 1 ? list : [...prev, ...list]).slice().sort(byCreatedDesc));
+    const sorted = (p === 1 ? list : [...notes, ...list]).slice().sort(byCreatedDesc);
+    setNotes(sorted);
     setHasMore(list.length === PAGE_SIZE);
     setPage(p);
-    if (p === 1 && isPc && list.length) setSelected(list.slice().sort(byCreatedDesc)[0]);
+    if (p === 1 && sorted.length) {
+      const deepLinked = sorted.find((n) => String(n.id) === searchParams.get("note"));
+      if (deepLinked) setSelected(deepLinked);
+      else if (isPc) setSelected(sorted[0]);
+    }
     setLoading(false);
   };
 
@@ -84,7 +119,7 @@ const PublicHome = observer(() => {
     return (
       <div
         key={note.id}
-        onClick={() => setSelected(note)}
+        onClick={() => selectNote(note)}
         className={`px-4 py-3 border-b border-hover cursor-pointer transition-colors ${active ? "bg-primary/10" : "hover:bg-hover"}`}
       >
         <div className={`text-sm font-medium truncate ${active ? "text-primary" : ""}`}>{getTitle(note.content) || t("untitled")}</div>
@@ -153,7 +188,7 @@ const PublicHome = observer(() => {
             {selected ? (
               <>
                 <div className="flex items-center gap-2 px-4 h-11 shrink-0 border-b border-hover">
-                  <Button size="sm" variant="light" isIconOnly onPress={() => setSelected(null)} aria-label={t("back")}>
+                  <Button size="sm" variant="light" isIconOnly onPress={() => { setSelected(null); setSearchParams({}); }} aria-label={t("back")}>
                     <Icon icon="tabler:arrow-left" width="20" height="20" />
                   </Button>
                   <span className="text-sm font-medium truncate">{getTitle(selected.content)}</span>
