@@ -15,6 +15,9 @@ import { Icon } from "@/components/Common/Iconify/icons";
 
 const PAGE_SIZE = 50;
 
+// Owner's GitHub project, linked from the public header.
+const GITHUB_URL = "https://github.com/luoliguang/blinko";
+
 // First non-tag line of the note, stripped of a leading markdown heading marker.
 function getTitle(content?: string) {
   const line = (content ?? "").split("\n").find((l) => l.trim() && !helper.regex.isContainHashTag.test(l)) ?? "";
@@ -54,6 +57,9 @@ const PublicHome = observer(() => {
 
   const authButtons = (
     <div className="flex items-center gap-2">
+      <Button size="sm" radius="full" variant="light" isIconOnly aria-label="GitHub" onPress={() => window.open(GITHUB_URL, "_blank", "noopener")}>
+        <Icon icon="tabler:brand-github" width="20" height="20" />
+      </Button>
       <Button size="sm" radius="full" variant="bordered" onPress={() => navigate("/signin")}>
         {t("sign-in")}
       </Button>
@@ -138,7 +144,7 @@ const PublicHome = observer(() => {
         </div>
 
         {isPc ? (
-          <div className="flex-1 flex min-h-0 max-w-screen-xl w-full mx-auto">
+          <div className="flex-1 flex min-h-0 w-full">
             <div className="w-[300px] shrink-0 flex flex-col border-r border-hover bg-background">{listPanel}</div>
             {readerPanel}
           </div>
