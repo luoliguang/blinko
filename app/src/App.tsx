@@ -42,6 +42,7 @@ const AllPage = lazy(() => import('./pages/all'));
 const OAuthCallbackPage = lazy(() => import('./pages/oauth-callback'));
 const DetailPage = lazy(() => import('./pages/detail'));
 const ShareIndexPage = lazy(() => import('./pages/share'));
+const PublicHomePage = lazy(() => import('./pages/public-home'));
 const ShareDetailPage = lazy(() => import('./pages/share/[id]'));
 const AiSharePage = lazy(() => import('./pages/ai-share'));
 
@@ -113,6 +114,42 @@ const ProtectedRoute = ({ children }) => {
   }
 
   return children;
+};
+
+// Root entry: unauthenticated visitors see the public showcase instead of being
+// bounced to /signin; authenticated users get their normal home.
+const RootEntry = () => {
+  const userStore = RootStore.Get(UserStore);
+  const [checking, setChecking] = useState(true);
+  const [authed, setAuthed] = useState(false);
+
+  useEffect(() => {
+    const check = async () => {
+      if (userStore.isLogin) {
+        setAuthed(true);
+        setChecking(false);
+        return;
+      }
+      const tokenData = await getTokenData();
+      setAuthed(!!tokenData?.user?.id);
+      setChecking(false);
+    };
+    check();
+  }, [userStore.isLogin]);
+
+  if (checking) {
+    return <LoadingPage />;
+  }
+
+  if (!authed) {
+    return <PublicHomePage />;
+  }
+
+  return (
+    <ProtectedRoute>
+      <HomeRedirect />
+    </ProtectedRoute>
+  );
 };
 
 // Detect current window type
@@ -230,7 +267,7 @@ function AppRoutes() {
       return (
         <Suspense fallback={<LoadingPage />}>
           <Routes>
-            <Route path="/" element={<ProtectedRoute><HomeRedirect /></ProtectedRoute>} />
+            <Route path="/" element={<RootEntry />} />
             <Route path="/signin" element={<SignInPage />} />
             <Route path="/signup" element={<SignUpPage />} />
             <Route path="/hub" element={<ProtectedRoute><HubPage /></ProtectedRoute>} />

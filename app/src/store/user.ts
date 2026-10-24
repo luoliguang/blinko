@@ -370,6 +370,7 @@ export class UserStore implements Store {
 
       if (pathname !== '/signin' &&
         pathname !== '/signup' &&
+        pathname !== '/' &&
         !pathname.includes('/share') &&
         !pathname.includes('/ai-share') &&
         !pathname.includes('/oauth-callback') &&
@@ -466,7 +467,7 @@ export class UserStore implements Store {
     useEffect(() => {
       const handleSignout = () => {
         const pathname = location.pathname;
-        if (pathname === '/signup' || pathname.includes('/share') || pathname.includes('/ai-share') || pathname.includes('/oauth-callback')) {
+        if (pathname === '/' || pathname === '/signup' || pathname.includes('/share') || pathname.includes('/ai-share') || pathname.includes('/oauth-callback')) {
           return
         }
         this.clear()

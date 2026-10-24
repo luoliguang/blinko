@@ -75,6 +75,7 @@ export const CommonLayout = observer(({ children, header }: { children?: React.R
   if (!isClient) return <></>;
 
   if (
+    (location.pathname == '/' && !user.isLogin) ||
     location.pathname == '/signin' ||
     location.pathname == '/quicknote' ||
     location.pathname == '/quickai' ||
