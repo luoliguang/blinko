@@ -164,7 +164,9 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
         if (isCreateMode) {
           console.log("createMode", files, references, noteType, metadata)
           //@ts-ignore
-          await blinko.upsertNote.call({ type: noteType, references, refresh: false, content: blinko.noteContent, attachments: files.map(i => { return { name: i.name, path: i.uploadPath, size: i.size, type: i.type } }), metadata })
+          const created = await blinko.upsertNote.call({ type: noteType, references, refresh: false, content: blinko.noteContent, attachments: files.map(i => { return { name: i.name, path: i.uploadPath, size: i.size, type: i.type } }), metadata })
+          // upsertNote.call swallows errors and resolves undefined; keep the draft and editor content in that case.
+          if (!created) throw new Error('Note was not saved');
           blinko.createAttachmentsStorage.clear()
           blinko.createContentStorage.clear()
           if (blinko.noteTypeDefault == NoteType.NOTE && searchParams.get('path') != 'notes') {
@@ -178,7 +180,7 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
           blinko.updateTicker++
         } else {
           if (!blinko.curSelectedNote) return;
-          await blinko.upsertNote.call({
+          const updated = await blinko.upsertNote.call({
             id: blinko.curSelectedNote.id,
             type: noteType,
             //@ts-ignore
@@ -189,6 +191,7 @@ export const BlinkoEditor = observer(({ mode, onSended, onHeightChange, isInDial
             metadata,
             refresh: true // Ensure list is refreshed after update
           })
+          if (!updated) throw new Error('Note was not saved');
           try {
             const index = blinko.editAttachmentsStorage.list?.findIndex(i => i.id == blinko.curSelectedNote!.id)
             if (index != -1) {
