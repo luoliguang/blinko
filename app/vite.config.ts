@@ -161,6 +161,14 @@ export default defineConfig({
       }
     }
   },
+  // Strip noisy/secret-prone console calls from PRODUCTION bundles only.
+  // `pure` lets esbuild drop these calls during minify (build), while dev stays
+  // untouched (no minify = logs kept). console.error is intentionally preserved
+  // for production diagnostics. `debugger` statements are always dropped.
+  esbuild: {
+    pure: ['console.log', 'console.info', 'console.debug', 'console.trace', 'console.warn'],
+    drop: ['debugger'],
+  },
   clearScreen: false,
   server: {
     port: EXPRESS_PORT,

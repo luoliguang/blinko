@@ -100,7 +100,6 @@ export default function OAuthCallback() {
           return;
         }
         
-        console.log('OAuth callback, success:', success, token);
         if (success === 'true') {
           if (token) {
             try {

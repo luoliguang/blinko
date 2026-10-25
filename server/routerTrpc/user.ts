@@ -298,7 +298,6 @@ export const userRouter = router({
       const user = await prisma.accounts.findFirst({ where: { id: Number(ctx.id) } })
       if (user) {
         const token = await generateApiToken({ id: user.id, name: user.name ?? '', role: user.role })
-        console.log('token', token);
         await prisma.accounts.update({ where: { id: user.id }, data: { apiToken: token } })
         return true
       } else {

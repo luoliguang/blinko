@@ -115,8 +115,6 @@ export class UserStore implements Store {
         return false;
       }
 
-      console.log('Verifying 2FA with userId:', userId, 'Full tokenData:', JSON.stringify(this.tokenData.value));
-
       const res = await signIn('oauth-2fa', {
         userId,
         twoFactorCode,
@@ -336,7 +334,6 @@ export class UserStore implements Store {
 
   handleToken(tokenData: TokenData | null, successCallback?: () => void) {
     const location = window.location;
-    console.log('handleToken', tokenData);
 
     if (tokenData && (tokenData.user || tokenData.token)) {
       if (tokenData.token && (!tokenData.user || !tokenData.user.id)) {

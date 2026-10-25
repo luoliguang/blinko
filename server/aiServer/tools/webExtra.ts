@@ -12,7 +12,6 @@ export const webExtra = createTool({
   execute: async ({ context }) => {
     try {
       const config = await getGlobalConfig({ useAdmin: true })
-      console.log('config', config.tavilyApiKey)
       if (!config.tavilyApiKey) {
         return 'No tavily api key found,go to settings to set it "tavilyApiKey"'
       }
