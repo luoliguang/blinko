@@ -117,6 +117,10 @@ RUN if [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then \
 # Copy Build Artifacts LAST — this is the only thing that changes on a code edit.
 COPY --from=builder /app/dist ./server
 COPY --from=builder /app/server/lute.min.js ./server/lute.min.js
+# Vditor static assets (highlight themes, mermaid, mathjax, …) are served from
+# ./server/vditor at runtime (serveVditorFile resolves ./vditor relative to the
+# bundle). Without this they 404 — e.g. the code-highlight github-dark.min.css.
+COPY --from=builder /app/server/vditor ./server/vditor
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma/client ./node_modules/.prisma/client
 COPY --from=builder /app/start.sh ./

@@ -68,8 +68,8 @@ export const CommonLayout = observer(({ children, header }: { children?: React.R
   // Keep the writing-queue count fresh so the navbar badge is correct even when the
   // panel is closed. Refreshes whenever notes change (updateTicker).
   useEffect(() => {
-    if (isPc) blinkoStore.pendingWriteList.call();
-  }, [isPc, blinkoStore.updateTicker]);
+    if (isPc && user.isLogin) blinkoStore.pendingWriteList.call();
+  }, [isPc, blinkoStore.updateTicker, user.isLogin]);
 
 
   if (!isClient) return <></>;

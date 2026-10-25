@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMediaQuery } from "usehooks-ts";
-import { Button } from "@heroui/react";
+import { Button, Tooltip } from "@heroui/react";
 import { api } from "@/lib/trpc";
 import { helper } from "@/lib/helper";
 import dayjs from "@/lib/dayjs";
@@ -111,9 +111,11 @@ const PublicHome = observer(() => {
 
   const authButtons = (
     <div className="flex items-center gap-2">
-      <Button size="sm" radius="full" variant="light" isIconOnly aria-label="GitHub" onPress={() => window.open(GITHUB_URL, "_blank", "noopener")}>
-        <Icon icon="tabler:brand-github" width="20" height="20" />
-      </Button>
+      <Tooltip content={t("github-cta")} placement="bottom" closeDelay={0}>
+        <Button size="sm" radius="full" variant="light" isIconOnly aria-label={t("github-cta")} onPress={() => window.open(GITHUB_URL, "_blank", "noopener")}>
+          <Icon icon="tabler:brand-github" width="20" height="20" />
+        </Button>
+      </Tooltip>
       <Button size="sm" radius="full" variant="bordered" onPress={() => navigate("/signin")}>
         {t("sign-in")}
       </Button>
@@ -149,7 +151,14 @@ const PublicHome = observer(() => {
   );
 
   const authorFilterRow = authors.length > 1 && (
-    <div className="flex gap-2 px-3 py-2 overflow-x-auto hide-scrollbar border-b border-hover">
+    <div
+      className="flex gap-2 px-3 py-2 overflow-x-auto hide-scrollbar border-b border-hover"
+      onWheel={(e) => {
+        if (e.deltaY !== 0) {
+          e.currentTarget.scrollLeft += e.deltaY;
+        }
+      }}
+    >
       <button
         onClick={() => setAuthorFilter(null)}
         className={`shrink-0 rounded-full px-3 py-1 text-xs transition-colors ${authorFilter == null ? "bg-primary/10 text-primary" : "text-desc hover:bg-hover"}`}

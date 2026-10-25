@@ -15,6 +15,7 @@ import { LoadingPage } from '@/components/Common/LoadingPage';
 import { PluginManagerStore } from '@/store/plugin/pluginManagerStore';
 import { RootStore } from '@/store';
 import { UserStore } from '@/store/user';
+import { eventBus } from '@/lib/event';
 import { getTokenData, setNavigate } from '@/components/Auth/auth-client';
 import { BlinkoStore } from '@/store/blinkoStore';
 import { useAndroidShortcuts } from '@/lib/hooks';
@@ -307,7 +308,13 @@ function App() {
   }
 
   useEffect(() => {
-    RootStore.Get(PluginManagerStore).initInstalledPlugins();
+    const pm = RootStore.Get(PluginManagerStore);
+    // Plugins are a logged-in feature; skip init for anonymous visitors (e.g. the
+    // public plaza) so their console isn't filled with 401s. Re-init on login.
+    if (RootStore.Get(UserStore).isLogin) pm.initInstalledPlugins();
+    const onToken = (data: any) => { if (data?.user?.id) pm.initInstalledPlugins(); };
+    eventBus.on('user:token', onToken);
+    return () => { eventBus.off('user:token', onToken); };
   }, []);
 
   return (

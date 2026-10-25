@@ -75,6 +75,7 @@
   "select-a-note": "Select a note to start reading",
   "public-site-title": "{{name}}'s notes",
   "public-plaza-title": "Notes plaza",
+  "github-cta": "Got ideas or want to contribute? Feedback welcome on GitHub",
   "host-badge": "Host",
   "anonymous": "Anonymous",
   "plaza-hosted-by": "Hosted by {{name}}",
