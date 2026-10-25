@@ -1,5 +1,5 @@
 import { observer } from "mobx-react-lite";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMediaQuery } from "usehooks-ts";
@@ -50,6 +50,21 @@ const PublicHome = observer(() => {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [authorFilter, setAuthorFilter] = useState<number | null>(null);
+
+  // Distinct authors among the loaded notes, used for the participant row and filter.
+  const authors = useMemo(() => {
+    const map = new Map<number, { id: number; name: string; image?: string }>();
+    for (const n of notes) {
+      const a = n.account;
+      if (a?.id != null && !map.has(a.id)) {
+        map.set(a.id, { id: a.id, name: a.nickname || a.name || t("anonymous"), image: a.image });
+      }
+    }
+    return [...map.values()];
+  }, [notes, t]);
+
+  const displayedNotes = authorFilter == null ? notes : notes.filter((n) => n.account?.id === authorFilter);
 
   useEffect(() => {
     api.public.siteInfo.query({}).then(setSite).catch(() => {});
@@ -59,7 +74,7 @@ const PublicHome = observer(() => {
   // description for the browser tab, search engines, and link previews.
   useEffect(() => {
     if (!site?.name) return;
-    const title = t("public-site-title", { name: site.name });
+    const title = t("public-plaza-title");
     const desc = site.description || t("public-cta-desc");
     document.title = title;
     setMeta("description", desc);
@@ -68,6 +83,7 @@ const PublicHome = observer(() => {
   }, [site, t]);
 
   const byCreatedDesc = (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  const authorName = (acc: any) => acc?.nickname || acc?.name || t("anonymous");
 
   // Open a note and reflect it in the URL so the view is shareable and survives reload.
   const selectNote = (note: any) => {
@@ -107,13 +123,49 @@ const PublicHome = observer(() => {
     </div>
   );
 
-  const profileHeader = (
-    <div className="flex items-center gap-3 p-4 border-b border-hover">
-      <UserAvatar account={{ image: site?.image }} guestName={site?.name} size={isPc ? 56 : 48} />
-      <div className="min-w-0">
-        <div className="text-lg font-bold truncate">{site?.name}</div>
-        {site?.description && <div className="text-xs text-desc line-clamp-2 mt-1">{site.description}</div>}
+  const plazaHeader = (
+    <div className="p-4 border-b border-hover">
+      <div className="flex items-center gap-3">
+        <UserAvatar account={{ image: site?.image }} guestName={site?.name} size={44} />
+        <div className="min-w-0">
+          <div className="text-base font-bold truncate">{t("public-plaza-title")}</div>
+          {site?.name && <div className="text-xs text-desc truncate">{t("plaza-hosted-by", { name: site.name })}</div>}
+        </div>
       </div>
+      <div className="text-xs text-desc leading-relaxed mt-2 line-clamp-2">{site?.description || t("plaza-welcome")}</div>
+      {authors.length > 0 && (
+        <div className="flex items-center gap-2 mt-3">
+          <div className="flex">
+            {authors.slice(0, 4).map((a, i) => (
+              <div key={a.id} style={{ marginLeft: i ? -7 : 0 }} className="rounded-full ring-2 ring-background">
+                <UserAvatar account={{ image: a.image }} guestName={a.name} size={20} />
+              </div>
+            ))}
+          </div>
+          <span className="text-xs text-desc truncate">{t("plaza-participants", { count: authors.length })}</span>
+        </div>
+      )}
+    </div>
+  );
+
+  const authorFilterRow = authors.length > 1 && (
+    <div className="flex gap-2 px-3 py-2 overflow-x-auto hide-scrollbar border-b border-hover">
+      <button
+        onClick={() => setAuthorFilter(null)}
+        className={`shrink-0 rounded-full px-3 py-1 text-xs transition-colors ${authorFilter == null ? "bg-primary/10 text-primary" : "text-desc hover:bg-hover"}`}
+      >
+        {t("all-authors")}
+      </button>
+      {authors.map((a) => (
+        <button
+          key={a.id}
+          onClick={() => setAuthorFilter(a.id)}
+          className={`shrink-0 flex items-center gap-1 rounded-full px-2 py-1 text-xs transition-colors ${authorFilter === a.id ? "bg-primary/10 text-primary" : "text-desc hover:bg-hover"}`}
+        >
+          <UserAvatar account={{ image: a.image }} guestName={a.name} size={16} />
+          <span className="max-w-[80px] truncate">{a.name}</span>
+        </button>
+      ))}
     </div>
   );
 
@@ -126,16 +178,22 @@ const PublicHome = observer(() => {
         className={`px-4 py-3 border-b border-hover cursor-pointer transition-colors ${active ? "bg-primary/10" : "hover:bg-hover"}`}
       >
         <div className={`text-sm font-medium truncate ${active ? "text-primary" : ""}`}>{getTitle(note.content) || t("untitled")}</div>
-        <div className="text-xs text-desc mt-1">{dayjs(note.createdAt).format("YYYY-MM-DD")}</div>
+        <div className="flex items-center gap-1.5 mt-1.5 text-xs text-desc">
+          <UserAvatar account={{ image: note.account?.image }} guestName={authorName(note.account)} size={16} />
+          <span className="truncate max-w-[110px]">{authorName(note.account)}</span>
+          <span>·</span>
+          <span className="shrink-0">{dayjs(note.createdAt).format("YYYY-MM-DD")}</span>
+        </div>
       </div>
     );
   };
 
   const listPanel = (
     <ScrollArea className="flex-1" onBottom={() => hasMore && loadPage(page + 1)}>
-      {profileHeader}
+      {plazaHeader}
+      {authorFilterRow}
       <LoadingAndEmpty isLoading={loading} isEmpty={!loading && notes.length === 0} />
-      {notes.map(noteRow)}
+      {displayedNotes.map(noteRow)}
       {hasMore && (
         <div className="p-3 flex justify-center">
           <Button size="sm" variant="light" onPress={() => loadPage(page + 1)}>
@@ -163,10 +221,17 @@ const PublicHome = observer(() => {
       {selected ? (
         <div className="max-w-3xl mx-auto">
           <div className="bg-background rounded-2xl p-4 md:p-6">
-            <div className="text-xs text-desc mb-4">{dayjs(selected.createdAt).format("YYYY-MM-DD HH:mm")}</div>
+            <div className="flex items-center gap-2 mb-4">
+              <UserAvatar account={{ image: selected.account?.image }} guestName={authorName(selected.account)} size={28} />
+              <div className="min-w-0">
+                <div className="text-sm font-medium truncate">{authorName(selected.account)}</div>
+                <div className="text-xs text-desc">{dayjs(selected.createdAt).format("YYYY-MM-DD HH:mm")}</div>
+              </div>
+            </div>
             <NoteContent blinkoItem={selected} blinko={blinko} isExpanded isShareMode />
           </div>
           {ctaCard}
+          <div className="h-10" />
         </div>
       ) : (
         <div className="h-full flex items-center justify-center text-desc text-sm">{t("select-a-note")}</div>
@@ -175,11 +240,11 @@ const PublicHome = observer(() => {
   );
 
   return (
-    <div className="h-[100vh] w-full flex flex-col bg-secondbackground">
+    <div className="h-mobile-full w-full flex flex-col bg-secondbackground">
         <div className="flex items-center justify-between px-4 md:px-6 h-14 shrink-0 bg-background border-b border-hover">
           <div className="flex items-center gap-2 min-w-0">
             <img src="/logo.png" alt="Blinko" className="w-7 h-7 rounded-lg" onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
-            <span className="font-bold truncate">{site?.name ? t("public-site-title", { name: site.name }) : "Blinko"}</span>
+            <span className="font-bold truncate">{t("public-plaza-title")}</span>
           </div>
           {authButtons}
         </div>
