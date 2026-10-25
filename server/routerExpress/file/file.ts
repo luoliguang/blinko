@@ -135,18 +135,36 @@ router.get(/.*/, async (req, res) => {
           }
         }
       });
-      // console.log('myFile', myFile);
+      const requesterId = token ? Number(token.id) : null;
 
-
-      if (!token) {
-        if (myFile?.note?.isShare) {
+      if (myFile) {
+        const isPublic = !!myFile.note?.isShare;
+        if (isPublic) {
+          // Public-shared note: anyone can view, including unauthenticated visitors.
+        } else if (requesterId == null) {
+          return res.status(401).json({ error: "Unauthorized" });
         } else {
+          const isOwner = requesterId === myFile.accountId || requesterId === myFile.note?.accountId;
+          // noteId null = avatars and not-yet-attached uploads; keep these readable by any
+          // logged-in user (avatars are referenced across the app).
+          const isUnattached = myFile.noteId == null;
+          let isInternalRecipient = false;
+          if (!isOwner && !isUnattached && myFile.noteId != null) {
+            const share = await prisma.noteInternalShare.findFirst({
+              where: { noteId: myFile.noteId, accountId: requesterId },
+              select: { id: true },
+            });
+            isInternalRecipient = !!share;
+          }
+          if (!isOwner && !isUnattached && !isInternalRecipient) {
+            return res.status(401).json({ error: "Unauthorized" });
+          }
+        }
+      } else {
+        // No attachment record for this path (orphan file on disk): require authentication.
+        if (!token) {
           return res.status(401).json({ error: "Unauthorized" });
         }
-      }
-
-      if (myFile && (!myFile?.note?.isShare && Number(token?.id) != myFile?.note?.accountId && !myFile?.accountId)) {
-        return res.status(401).json({ error: "Unauthorized" });
       }
     } catch (error) {
       console.error('Error checking file permissions:', error);
