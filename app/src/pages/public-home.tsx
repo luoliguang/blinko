@@ -7,8 +7,10 @@ import { Button } from "@heroui/react";
 import { api } from "@/lib/trpc";
 import { helper } from "@/lib/helper";
 import dayjs from "@/lib/dayjs";
-import { BlinkoCard } from "@/components/BlinkoCard";
+import { NoteContent } from "@/components/BlinkoCard/noteContent";
 import { UserAvatar } from "@/components/BlinkoCard/commentButton";
+import { RootStore } from "@/store";
+import { BlinkoStore } from "@/store/blinkoStore";
 import { ScrollArea } from "@/components/Common/ScrollArea";
 import { LoadingAndEmpty } from "@/components/Common/LoadingAndEmpty";
 import { Icon } from "@/components/Common/Iconify/icons";
@@ -40,6 +42,7 @@ const PublicHome = observer(() => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const isPc = useMediaQuery("(min-width: 768px)");
+  const blinko = RootStore.Get(BlinkoStore);
 
   const [site, setSite] = useState<{ name?: string; image?: string; description?: string } | null>(null);
   const [notes, setNotes] = useState<any[]>([]);
@@ -159,7 +162,10 @@ const PublicHome = observer(() => {
     <ScrollArea className="flex-1 px-4 md:px-8 py-4">
       {selected ? (
         <div className="max-w-3xl mx-auto">
-          <BlinkoCard blinkoItem={selected} isShareMode glassEffect defaultExpanded withoutHoverAnimation />
+          <div className="bg-background rounded-2xl p-4 md:p-6">
+            <div className="text-xs text-desc mb-4">{dayjs(selected.createdAt).format("YYYY-MM-DD HH:mm")}</div>
+            <NoteContent blinkoItem={selected} blinko={blinko} isExpanded isShareMode />
+          </div>
           {ctaCard}
         </div>
       ) : (

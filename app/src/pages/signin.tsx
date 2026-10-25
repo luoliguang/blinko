@@ -243,6 +243,9 @@ export default function Component() {
               </Link>
             </p>
           )}
+          <p className="text-center text-small mt-1">
+            <Link to="/">{t('browse-public-notes')}</Link>
+          </p>
           {blinko.config.value?.signinFooterEnabled &&
            blinko.config.value?.signinFooterText?.trim() && (
             <div className="mt-2 text-center max-w-full">
