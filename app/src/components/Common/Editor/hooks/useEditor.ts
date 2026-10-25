@@ -7,6 +7,7 @@ import { OnSendContentType } from '../type';
 import Vditor from 'vditor';
 import { ToolbarMobile, ToolbarPC } from '../EditorToolbar';
 import { RootStore } from '@/store';
+import { ToastPlugin } from '@/store/module/Toast/Toast';
 import { UserStore } from '@/store/user';
 import { i18nEditor } from '../EditorToolbar/i18n';
 import { useTranslation } from 'react-i18next';
@@ -422,6 +423,14 @@ export const useEditorInit = (
             type,
             size
           })
+        },
+        error: (msg: string) => {
+          let detail = msg;
+          try { detail = JSON.parse(msg)?.error || msg; } catch { /* keep raw */ }
+          const friendly = /quota/i.test(detail) ? t('upload-quota-exceeded')
+            : /limit|large|413/i.test(detail) ? t('upload-too-large')
+              : (detail || t('upload-failed'));
+          RootStore.Get(ToastPlugin).error(friendly);
         },
         headers: {
           'Authorization': `Bearer ${RootStore.Get(UserStore).token}`

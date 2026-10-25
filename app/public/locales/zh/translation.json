@@ -391,6 +391,8 @@
   "upload-completed": "上传完成",
   "upload-cancelled": "上传已取消",
   "upload-failed": "上传失败",
+  "upload-too-large": "文件太大，已超过上传大小上限",
+  "upload-quota-exceeded": "存储空间已满，请清理一些文件后再试",
   "import-from-bko-tip": "目前不支持将上传到S3进行恢复。当您想要恢复时，请暂时禁用S3选项。",
   "music-settings": "音乐设置",
   "spotify-consumer-key": "Spotify接口Key",

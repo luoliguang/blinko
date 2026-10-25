@@ -252,9 +252,19 @@ export class EditorStore {
               .setSizeThreshold(40)
               .uploadProgress(file);
 
-            const response = await axiosInstance.post(getBlinkoEndpoint('/api/file/upload'), formData, {
-              onUploadProgress
-            });
+            let response;
+            try {
+              response = await axiosInstance.post(getBlinkoEndpoint('/api/file/upload'), formData, {
+                onUploadProgress
+              });
+            } catch (error: any) {
+              const status = error?.response?.status;
+              const serverMsg: string = error?.response?.data?.error || '';
+              if (status === 413) {
+                throw new Error(serverMsg.toLowerCase().includes('quota') ? i18n.t('upload-quota-exceeded') : i18n.t('upload-too-large'));
+              }
+              throw new Error(serverMsg || i18n.t('upload-failed'));
+            }
             const data = response.data;
             if (data.fileName) {
               const fileIndex = this.files.findIndex(f => f.name === file.name);

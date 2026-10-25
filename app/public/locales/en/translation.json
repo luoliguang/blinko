@@ -397,6 +397,8 @@
   "upload-completed": "Upload completed",
   "upload-cancelled": "Upload cancelled",
   "upload-failed": "Upload Failed",
+  "upload-too-large": "File is too large — it exceeds the upload size limit",
+  "upload-quota-exceeded": "Storage is full — free up some space and try again",
   "import-from-bko-tip": "Uploading to s3 for recovery is not supported at this time. Please disable the s3 option temporarily when you want to recover.",
   "music-settings": "Music Settings",
   "spotify-consumer-key": "Spotify API Key",
