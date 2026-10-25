@@ -219,13 +219,19 @@ router.get(/.*/, async (req, res) => {
     const encodedFilename = encodeURIComponent(fullPath).replace(/['()]/g, (char) => '%' + char.charCodeAt(0).toString(16));
     const fallbackFilename = `file${path.extname(fullPath)}`;
 
+    // Never render user-uploaded active content inline (stored XSS in the app origin).
+    // Force these to download; nosniff stops the browser from re-interpreting the type.
+    const RISKY_INLINE_TYPE = /^(text\/html|image\/svg\+xml|application\/xhtml\+xml|application\/xml|text\/xml|text\/javascript|application\/javascript)/i;
+    const forceAttachment = isDownload || RISKY_INLINE_TYPE.test(contentType);
+
     res.set({
       "Content-Type": contentType,
       "ETag": etag,
-      "Cache-Control": "public, max-age=3600"
+      "Cache-Control": "public, max-age=3600",
+      "X-Content-Type-Options": "nosniff"
     });
 
-    if (isDownload) {
+    if (forceAttachment) {
       res.set("Content-Disposition", `attachment; filename="${fallbackFilename}"; filename*=UTF-8''${encodedFilename}`);
     }
 

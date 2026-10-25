@@ -1,11 +1,17 @@
 import express from 'express';
 import { FileService } from '../../lib/files';
 import { getTokenFromRequest } from '../../lib/helper';
+import { prisma } from '../../prisma';
 import { Readable, PassThrough } from 'stream';
 import busboy from 'busboy';
 import cors from 'cors';
 
 const router = express.Router();
+
+// Upload guards (configurable via env). Per-file hard cap plus a per-account total
+// storage quota so a single user can't fill the disk with large or many files.
+const MAX_FILE_BYTES = (Number(process.env.MAX_UPLOAD_FILE_MB) || 200) * 1024 * 1024;
+const MAX_USER_STORAGE_BYTES = (Number(process.env.MAX_USER_STORAGE_MB) || 2048) * 1024 * 1024;
 
 router.options('/', cors({
   origin: '*',
@@ -81,9 +87,11 @@ router.post('/', async (req, res) => {
     }
     
     const bb = busboy({
-      headers: req.headers
+      headers: req.headers,
+      limits: { fileSize: MAX_FILE_BYTES, files: 1 }
     });
-    
+
+    let truncated = false;
     let fileInfo: {
       stream: PassThrough | null,
       filename: string,
@@ -127,7 +135,12 @@ router.post('/', async (req, res) => {
           fileSize += chunk.length;
           passThrough.write(chunk);
         });
-        
+
+        // busboy emits 'limit' when the per-file cap is exceeded and stops the stream.
+        stream.on('limit', () => {
+          truncated = true;
+        });
+
         stream.on('end', () => {
           passThrough.end();
           fileInfo = {
@@ -144,10 +157,24 @@ router.post('/', async (req, res) => {
     });
     
     bb.on('finish', async () => {
+      if (truncated) {
+        return res.status(413).json({ error: `File exceeds the ${Math.round(MAX_FILE_BYTES / 1024 / 1024)}MB limit` });
+      }
       if (!fileInfo || !fileInfo.stream) {
         return res.status(400).json({ error: "No files received." });
       }
-      
+
+      // Per-account storage quota: reject if this upload would push the user over their total.
+      try {
+        const used = await prisma.attachments.aggregate({ _sum: { size: true }, where: { accountId: Number(token.id) } });
+        if ((used._sum.size ?? 0) + fileInfo.size > MAX_USER_STORAGE_BYTES) {
+          return res.status(413).json({ error: "Storage quota exceeded" });
+        }
+      } catch (error) {
+        console.error('Quota check failed:', error);
+        return res.status(500).json({ error: "Upload failed" });
+      }
+
       try {
         const webReadableStream = Readable.toWeb(fileInfo.stream) as unknown as ReadableStream;
         
