@@ -86,9 +86,12 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: "Content type must be multipart/form-data" });
     }
     
+    // The site owner is exempt from the per-file cap and the storage quota.
+    const isSuperAdmin = (token as any).role === 'superadmin';
+
     const bb = busboy({
       headers: req.headers,
-      limits: { fileSize: MAX_FILE_BYTES, files: 1 }
+      limits: isSuperAdmin ? { files: 1 } : { fileSize: MAX_FILE_BYTES, files: 1 }
     });
 
     let truncated = false;
@@ -165,14 +168,16 @@ router.post('/', async (req, res) => {
       }
 
       // Per-account storage quota: reject if this upload would push the user over their total.
-      try {
-        const used = await prisma.attachments.aggregate({ _sum: { size: true }, where: { accountId: Number(token.id) } });
-        if ((used._sum.size ?? 0) + fileInfo.size > MAX_USER_STORAGE_BYTES) {
-          return res.status(413).json({ error: "Storage quota exceeded" });
+      if (!isSuperAdmin) {
+        try {
+          const used = await prisma.attachments.aggregate({ _sum: { size: true }, where: { accountId: Number(token.id) } });
+          if ((used._sum.size ?? 0) + fileInfo.size > MAX_USER_STORAGE_BYTES) {
+            return res.status(413).json({ error: "Storage quota exceeded" });
+          }
+        } catch (error) {
+          console.error('Quota check failed:', error);
+          return res.status(500).json({ error: "Upload failed" });
         }
-      } catch (error) {
-        console.error('Quota check failed:', error);
-        return res.status(500).json({ error: "Upload failed" });
       }
 
       try {
