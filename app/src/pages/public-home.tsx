@@ -155,7 +155,7 @@ const PublicHome = observer(() => {
           </button>
         )}
       </div>
-      <div className="flex flex-wrap gap-1.5 max-h-[104px] overflow-y-auto hide-scrollbar">
+      <div className="flex flex-wrap gap-2 max-h-[108px] overflow-y-auto hide-scrollbar px-1 pt-1.5 pb-0.5">
         {authors.map((a) => {
           const isActive = authorFilter === a.id;
           const isHost = site?.id != null && a.id === site.id;
