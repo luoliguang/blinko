@@ -81,6 +81,7 @@
   "plaza-hosted-by": "Hosted by {{name}}",
   "plaza-welcome": "Where my friends and I jot down everyday thoughts.",
   "plaza-participants": "{{count}} writing here",
+  "author-post-count": "{{name}} · {{count}} posts",
   "all-authors": "All",
   "public-cta-title": "Want to record your days too?",
   "public-cta-desc": "Sign up and join us writing.",

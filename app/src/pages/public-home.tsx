@@ -44,7 +44,7 @@ const PublicHome = observer(() => {
   const isPc = useMediaQuery("(min-width: 768px)");
   const blinko = RootStore.Get(BlinkoStore);
 
-  const [site, setSite] = useState<{ name?: string; image?: string; description?: string } | null>(null);
+  const [site, setSite] = useState<{ id?: number; name?: string; image?: string; description?: string } | null>(null);
   const [notes, setNotes] = useState<any[]>([]);
   const [selected, setSelected] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -52,16 +52,19 @@ const PublicHome = observer(() => {
   const [hasMore, setHasMore] = useState(false);
   const [authorFilter, setAuthorFilter] = useState<number | null>(null);
 
-  // Distinct authors among the loaded notes, used for the participant row and filter.
+  // Distinct authors among the loaded notes (with post counts), used for the
+  // contributor wall + filter. Sorted most-active first.
   const authors = useMemo(() => {
-    const map = new Map<number, { id: number; name: string; image?: string }>();
+    const map = new Map<number, { id: number; name: string; image?: string; count: number }>();
     for (const n of notes) {
       const a = n.account;
-      if (a?.id != null && !map.has(a.id)) {
-        map.set(a.id, { id: a.id, name: a.nickname || a.name || t("anonymous"), image: a.image });
+      if (a?.id != null) {
+        const existing = map.get(a.id);
+        if (existing) existing.count++;
+        else map.set(a.id, { id: a.id, name: a.nickname || a.name || t("anonymous"), image: a.image, count: 1 });
       }
     }
-    return [...map.values()];
+    return [...map.values()].sort((x, y) => y.count - x.count);
   }, [notes, t]);
 
   const displayedNotes = authorFilter == null ? notes : notes.filter((n) => n.account?.id === authorFilter);
@@ -125,8 +128,9 @@ const PublicHome = observer(() => {
     </div>
   );
 
+  // 上 (fixed): plaza intro.
   const plazaHeader = (
-    <div className="p-4 border-b border-hover">
+    <div className="shrink-0 p-4 border-b border-hover">
       <div className="flex items-center gap-3">
         <UserAvatar account={{ image: site?.image }} guestName={site?.name} size={44} />
         <div className="min-w-0">
@@ -135,46 +139,43 @@ const PublicHome = observer(() => {
         </div>
       </div>
       <div className="text-xs text-desc leading-relaxed mt-2 line-clamp-2">{site?.description || t("plaza-welcome")}</div>
-      {authors.length > 0 && (
-        <div className="flex items-center gap-2 mt-3">
-          <div className="flex">
-            {authors.slice(0, 4).map((a, i) => (
-              <div key={a.id} style={{ marginLeft: i ? -7 : 0 }} className="rounded-full ring-2 ring-background">
-                <UserAvatar account={{ image: a.image }} guestName={a.name} size={20} />
-              </div>
-            ))}
-          </div>
-          <span className="text-xs text-desc truncate">{t("plaza-participants", { count: authors.length })}</span>
-        </div>
-      )}
     </div>
   );
 
-  const authorFilterRow = authors.length > 1 && (
-    <div
-      className="flex gap-2 px-3 py-2 overflow-x-auto hide-scrollbar border-b border-hover"
-      onWheel={(e) => {
-        if (e.deltaY !== 0) {
-          e.currentTarget.scrollLeft += e.deltaY;
-        }
-      }}
-    >
-      <button
-        onClick={() => setAuthorFilter(null)}
-        className={`shrink-0 rounded-full px-3 py-1 text-xs transition-colors ${authorFilter == null ? "bg-primary/10 text-primary" : "text-desc hover:bg-hover"}`}
-      >
-        {t("all-authors")}
-      </button>
-      {authors.map((a) => (
-        <button
-          key={a.id}
-          onClick={() => setAuthorFilter(a.id)}
-          className={`shrink-0 flex items-center gap-1 rounded-full px-2 py-1 text-xs transition-colors ${authorFilter === a.id ? "bg-primary/10 text-primary" : "text-desc hover:bg-hover"}`}
-        >
-          <UserAvatar account={{ image: a.image }} guestName={a.name} size={16} />
-          <span className="max-w-[80px] truncate">{a.name}</span>
-        </button>
-      ))}
+  // 下 (fixed): GitHub-style contributor wall. Click an avatar to filter the list
+  // to that author; most-active contributors come first, the host gets a crown.
+  const contributorWall = authors.length > 0 && (
+    <div className="shrink-0 border-t border-hover p-3">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs text-desc">{t("plaza-participants", { count: authors.length })}</span>
+        {authorFilter != null && (
+          <button onClick={() => setAuthorFilter(null)} className="flex items-center gap-0.5 text-xs text-primary hover:opacity-80">
+            <Icon icon="tabler:x" width="12" height="12" />
+            {t("all-authors")}
+          </button>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-1.5 max-h-[104px] overflow-y-auto hide-scrollbar">
+        {authors.map((a) => {
+          const isActive = authorFilter === a.id;
+          const isHost = site?.id != null && a.id === site.id;
+          return (
+            <button
+              key={a.id}
+              onClick={() => setAuthorFilter(isActive ? null : a.id)}
+              title={t("author-post-count", { name: a.name, count: a.count })}
+              className={`relative shrink-0 rounded-full transition-transform hover:scale-110 ${isActive ? "ring-2 ring-primary ring-offset-1 ring-offset-background" : ""}`}
+            >
+              <UserAvatar account={{ image: a.image }} guestName={a.name} size={28} />
+              {isHost && (
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-background flex items-center justify-center">
+                  <Icon icon="tabler:crown" width="10" height="10" className="text-warning" />
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 
@@ -197,20 +198,24 @@ const PublicHome = observer(() => {
     );
   };
 
+  // Three-section left panel: fixed intro (top), scrolling note list (middle),
+  // fixed contributor wall (bottom).
   const listPanel = (
-    <ScrollArea className="flex-1" onBottom={() => hasMore && loadPage(page + 1)}>
+    <div className="flex flex-col flex-1 min-h-0">
       {plazaHeader}
-      {authorFilterRow}
-      <LoadingAndEmpty isLoading={loading} isEmpty={!loading && notes.length === 0} />
-      {displayedNotes.map(noteRow)}
-      {hasMore && (
-        <div className="p-3 flex justify-center">
-          <Button size="sm" variant="light" onPress={() => loadPage(page + 1)}>
-            {t("load-more")}
-          </Button>
-        </div>
-      )}
-    </ScrollArea>
+      <ScrollArea className="flex-1 min-h-0" onBottom={() => hasMore && loadPage(page + 1)}>
+        <LoadingAndEmpty isLoading={loading} isEmpty={!loading && notes.length === 0} />
+        {displayedNotes.map(noteRow)}
+        {hasMore && (
+          <div className="p-3 flex justify-center">
+            <Button size="sm" variant="light" onPress={() => loadPage(page + 1)}>
+              {t("load-more")}
+            </Button>
+          </div>
+        )}
+      </ScrollArea>
+      {contributorWall}
+    </div>
   );
 
   const ctaCard = (

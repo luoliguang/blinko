@@ -83,6 +83,7 @@
   "plaza-hosted-by": "{{name}} 发起",
   "plaza-welcome": "我和朋友们在这里写日常的碎碎念。",
   "plaza-participants": "{{count}} 人在写",
+  "author-post-count": "{{name}} · {{count}} 篇",
   "all-authors": "全部",
   "public-cta-title": "也想记录自己的日常？",
   "public-cta-desc": "注册，加入我们，一起写随笔。",
