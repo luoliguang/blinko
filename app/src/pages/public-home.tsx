@@ -1,5 +1,5 @@
 import { observer } from "mobx-react-lite";
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMediaQuery } from "usehooks-ts";
@@ -37,6 +37,14 @@ function setMeta(name: string, content: string, property = false) {
   el.content = content;
 }
 
+// Memoized so TOC active-highlight re-renders (activeHeading state) don't re-render
+// the markdown body and reset the reader's scroll position.
+const ReaderBody = memo(({ note, blinko }: { note: any; blinko: any }) => (
+  <div data-reader-content>
+    <NoteContent blinkoItem={note} blinko={blinko} isExpanded isShareMode />
+  </div>
+));
+
 const PublicHome = observer(() => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -51,6 +59,8 @@ const PublicHome = observer(() => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [authorFilter, setAuthorFilter] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+  const [activeHeading, setActiveHeading] = useState(0);
 
   // Distinct authors among the loaded notes (with post counts), used for the
   // contributor wall + filter. Sorted most-active first.
@@ -67,7 +77,22 @@ const PublicHome = observer(() => {
     return [...map.values()].sort((x, y) => y.count - x.count);
   }, [notes, t]);
 
-  const displayedNotes = authorFilter == null ? notes : notes.filter((n) => n.account?.id === authorFilter);
+  const search_ = search.trim().toLowerCase();
+  const displayedNotes = notes.filter(
+    (n) =>
+      (authorFilter == null || n.account?.id === authorFilter) &&
+      (search_ === "" || (n.content ?? "").toLowerCase().includes(search_)),
+  );
+
+  // Table of contents parsed from the selected note's markdown headings.
+  const toc = useMemo(() => {
+    const out: { level: number; text: string }[] = [];
+    for (const line of (selected?.content ?? "").split("\n")) {
+      const m = /^(#{1,4})\s+(.+?)\s*#*$/.exec(line.trim());
+      if (m) out.push({ level: m[1].length, text: m[2].replace(/[*`~]/g, "").trim() });
+    }
+    return out;
+  }, [selected?.content]);
 
   useEffect(() => {
     api.public.siteInfo.query({}).then(setSite).catch(() => {});
@@ -139,6 +164,20 @@ const PublicHome = observer(() => {
         </div>
       </div>
       <div className="text-xs text-desc leading-relaxed mt-2 line-clamp-2">{site?.description || t("plaza-welcome")}</div>
+      <div className="mt-3 flex items-center gap-2 bg-hover rounded-lg px-2.5 h-8">
+        <Icon icon="tabler:search" width="15" height="15" className="text-desc shrink-0" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("search-notes-placeholder")}
+          className="bg-transparent outline-none text-xs w-full placeholder:text-desc"
+        />
+        {search && (
+          <button onClick={() => setSearch("")} aria-label={t("clear")} className="shrink-0 text-desc hover:text-foreground">
+            <Icon icon="tabler:x" width="14" height="14" />
+          </button>
+        )}
+      </div>
     </div>
   );
 
@@ -204,7 +243,7 @@ const PublicHome = observer(() => {
     <div className="flex flex-col flex-1 min-h-0">
       {plazaHeader}
       <ScrollArea className="flex-1 min-h-0" onBottom={() => hasMore && loadPage(page + 1)}>
-        <LoadingAndEmpty isLoading={loading} isEmpty={!loading && notes.length === 0} />
+        <LoadingAndEmpty isLoading={loading} isEmpty={!loading && displayedNotes.length === 0} />
         {displayedNotes.map(noteRow)}
         {hasMore && (
           <div className="p-3 flex justify-center">
@@ -242,7 +281,7 @@ const PublicHome = observer(() => {
                 <div className="text-xs text-desc">{dayjs(selected.createdAt).format("YYYY-MM-DD HH:mm")}</div>
               </div>
             </div>
-            <NoteContent blinkoItem={selected} blinko={blinko} isExpanded isShareMode />
+            <ReaderBody note={selected} blinko={blinko} />
           </div>
           {ctaCard}
           <div className="h-10" />
@@ -252,6 +291,79 @@ const PublicHome = observer(() => {
       )}
     </ScrollArea>
   );
+
+  const scrollToHeading = (idx: number) => {
+    const wrap = document.querySelector("[data-reader-content]") as HTMLElement | null;
+    const h = wrap?.querySelectorAll("h1,h2,h3,h4")[idx] as HTMLElement | undefined;
+    const root = wrap?.closest(".scroll-area") as HTMLElement | null;
+    if (h && root) {
+      // Use an instant jump: the container's CSS smooth-scroll animation gets
+      // cancelled by re-renders, so a smooth scrollTo would never land.
+      root.scrollTo({ top: root.scrollTop + h.getBoundingClientRect().top - root.getBoundingClientRect().top - 12, behavior: "instant" as ScrollBehavior });
+    }
+  };
+
+  // Right-side table of contents for the open article (desktop only).
+  const tocPanel = (
+    <div className="w-[200px] shrink-0 border-l border-hover p-4 overflow-y-auto hide-scrollbar">
+      <div className="flex items-center gap-1.5 text-xs text-desc mb-3">
+        <Icon icon="tabler:list" width="14" height="14" />
+        {t("toc-title")}
+      </div>
+      <div className="flex flex-col">
+        {toc.map((h, i) => (
+          <button
+            key={i}
+            onClick={() => { setActiveHeading(i); scrollToHeading(i); }}
+            style={{ paddingLeft: `${(h.level - 1) * 12 + 8}px` }}
+            title={h.text}
+            className={`text-left text-xs leading-snug py-1 border-l-2 truncate transition-colors ${
+              activeHeading === i ? "border-primary text-primary" : "border-transparent text-desc hover:text-foreground"
+            }`}
+          >
+            {h.text}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  // Highlight the heading currently near the top of the reader as it scrolls:
+  // the active one is the last heading above a line ~80px below the reader top.
+  useEffect(() => {
+    setActiveHeading(0);
+    if (!isPc || !selected || toc.length === 0) return;
+    let root: HTMLElement | null = null;
+    let onScroll: (() => void) | null = null;
+    let tries = 0;
+    // Markdown renders asynchronously; poll until the headings exist, then attach.
+    const poll = setInterval(() => {
+      tries++;
+      const container = document.querySelector("[data-reader-content]") as HTMLElement | null;
+      const headings = container ? (Array.from(container.querySelectorAll("h1,h2,h3,h4")) as HTMLElement[]) : [];
+      if (headings.length > 0) {
+        clearInterval(poll);
+        root = (container!.closest(".scroll-area") as HTMLElement | null) ?? null;
+        if (!root) return;
+        onScroll = () => {
+          const line = root!.getBoundingClientRect().top + 80;
+          let idx = 0;
+          headings.forEach((h, i) => {
+            if (h.getBoundingClientRect().top <= line) idx = i;
+          });
+          setActiveHeading(idx);
+        };
+        root.addEventListener("scroll", onScroll, { passive: true });
+        onScroll();
+      } else if (tries > 25) {
+        clearInterval(poll);
+      }
+    }, 100);
+    return () => {
+      clearInterval(poll);
+      if (root && onScroll) root.removeEventListener("scroll", onScroll);
+    };
+  }, [isPc, selected, toc.length]);
 
   return (
     <div className="h-mobile-full w-full flex flex-col bg-secondbackground">
@@ -267,6 +379,7 @@ const PublicHome = observer(() => {
           <div className="flex-1 flex min-h-0 w-full">
             <div className="w-[300px] shrink-0 flex flex-col border-r border-hover bg-background">{listPanel}</div>
             {readerPanel}
+            {selected && toc.length > 0 && tocPanel}
           </div>
         ) : (
           <div className="flex-1 flex flex-col min-h-0">
