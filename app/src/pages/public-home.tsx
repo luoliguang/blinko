@@ -1,8 +1,8 @@
 import { observer } from "mobx-react-lite";
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useMediaQuery } from "usehooks-ts";
+import { useDebounceValue, useMediaQuery } from "usehooks-ts";
 import { Button, Tooltip } from "@heroui/react";
 import { api } from "@/lib/trpc";
 import { helper } from "@/lib/helper";
@@ -25,6 +25,15 @@ function getTitle(content?: string) {
   const line = (content ?? "").split("\n").find((l) => l.trim() && !helper.regex.isContainHashTag.test(l)) ?? "";
   return line.replace(/^#+\s*/, "").trim() || "";
 }
+
+// Rough reading stats: CJK characters count one each, other words count one each.
+function readingStats(content?: string) {
+  const text = (content ?? "").replace(/!\[[^\]]*\]\([^)]*\)|\]\([^)]*\)|[#>*_`~|-]/g, " ");
+  const words = (text.match(/[㐀-鿿]/g)?.length ?? 0) + (text.replace(/[㐀-鿿]/g, " ").match(/[A-Za-z0-9]+/g)?.length ?? 0);
+  return { words, minutes: Math.max(1, Math.round(words / 400)) };
+}
+
+const HEATMAP_WEEKS = 26;
 
 function setMeta(name: string, content: string, property = false) {
   const attr = property ? "property" : "name";
@@ -60,29 +69,71 @@ const PublicHome = observer(() => {
   const [hasMore, setHasMore] = useState(false);
   const [authorFilter, setAuthorFilter] = useState<number | null>(null);
   const [search, setSearch] = useState("");
+  const [debouncedSearch] = useDebounceValue(search.trim(), 350);
   const [activeHeading, setActiveHeading] = useState(0);
+  const [stats, setStats] = useState<{ posts: { id: number; t: number; a: number }[]; authors: any[] } | null>(null);
 
-  // Distinct authors among the loaded notes (with post counts), used for the
-  // contributor wall + filter. Sorted most-active first.
-  const authors = useMemo(() => {
-    const map = new Map<number, { id: number; name: string; image?: string; count: number }>();
-    for (const n of notes) {
-      const a = n.account;
-      if (a?.id != null) {
-        const existing = map.get(a.id);
-        if (existing) existing.count++;
-        else map.set(a.id, { id: a.id, name: a.nickname || a.name || t("anonymous"), image: a.image, count: 1 });
-      }
-    }
-    return [...map.values()].sort((x, y) => y.count - x.count);
-  }, [notes, t]);
-
-  const search_ = search.trim().toLowerCase();
-  const displayedNotes = notes.filter(
-    (n) =>
-      (authorFilter == null || n.account?.id === authorFilter) &&
-      (search_ === "" || (n.content ?? "").toLowerCase().includes(search_)),
+  // Everything below derives from the full public index (stats), not the loaded
+  // page, and respects the author filter — so counts, heatmap, random,
+  // on-this-day and prev/next always agree with each other.
+  const scopedPosts = useMemo(
+    () => (stats?.posts ?? []).filter((p) => authorFilter == null || p.a === authorFilter),
+    [stats, authorFilter],
   );
+
+  // Contributor wall: every public author with their all-time post count.
+  const authors = useMemo(() => {
+    const counts = new Map<number, number>();
+    for (const p of stats?.posts ?? []) counts.set(p.a, (counts.get(p.a) ?? 0) + 1);
+    return (stats?.authors ?? [])
+      .map((a) => ({ id: a.id, name: a.nickname || a.name || t("anonymous"), image: a.image, count: counts.get(a.id) ?? 0 }))
+      .sort((x, y) => y.count - x.count);
+  }, [stats, t]);
+
+  const monthCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of scopedPosts) {
+      const k = dayjs(p.t).format("YYYY-MM");
+      m.set(k, (m.get(k) ?? 0) + 1);
+    }
+    return m;
+  }, [scopedPosts]);
+
+  // Day buckets in the visitor's local time (UTC bucketing shifts dates).
+  const dayBuckets = useMemo(() => {
+    const m = new Map<string, { count: number; latestId: number }>();
+    for (const p of scopedPosts) {
+      const k = dayjs(p.t).format("YYYY-MM-DD");
+      const b = m.get(k);
+      if (b) b.count++;
+      else m.set(k, { count: 1, latestId: p.id });
+    }
+    return m;
+  }, [scopedPosts]);
+
+  // Posts written on today's month-day in earlier years, newest first.
+  const onThisDay = useMemo(() => {
+    const today = dayjs();
+    return scopedPosts.filter((p) => {
+      const d = dayjs(p.t);
+      return d.format("MM-DD") === today.format("MM-DD") && d.year() < today.year();
+    });
+  }, [scopedPosts]);
+
+  // Reading order for prev/next: search results when searching, else the full index.
+  const sequence = debouncedSearch ? notes.map((n) => n.id) : scopedPosts.map((p) => p.id);
+  const seqIdx = selected ? sequence.indexOf(selected.id) : -1;
+  const newerId = seqIdx > 0 ? sequence[seqIdx - 1] : null;
+  const olderId = seqIdx >= 0 && seqIdx < sequence.length - 1 ? sequence[seqIdx + 1] : null;
+
+  // Notes come back filtered and newest-first, so consecutive runs share a month.
+  const monthGroups: { key: string; notes: any[] }[] = [];
+  for (const n of notes) {
+    const key = dayjs(n.createdAt).format("YYYY-MM");
+    const last = monthGroups[monthGroups.length - 1];
+    if (last?.key === key) last.notes.push(n);
+    else monthGroups.push({ key, notes: [n] });
+  }
 
   // Table of contents parsed from the selected note's markdown headings.
   const toc = useMemo(() => {
@@ -96,21 +147,22 @@ const PublicHome = observer(() => {
 
   useEffect(() => {
     api.public.siteInfo.query({}).then(setSite).catch(() => {});
+    api.notes.publicPlazaStats.query().then(setStats).catch(() => {});
   }, []);
 
-  // This page is the site's public front door, so give it a real title and
-  // description for the browser tab, search engines, and link previews.
+  // Page title/description follow the open note (tab title, bookmarks); the
+  // server injects the same into shared /?note= links for crawler previews.
   useEffect(() => {
-    if (!site?.name) return;
-    const title = t("public-plaza-title");
-    const desc = site.description || t("public-cta-desc");
+    const plaza = t("public-plaza-title");
+    const noteTitle = selected ? getTitle(selected.content) : "";
+    const title = noteTitle ? `${noteTitle} · ${plaza}` : plaza;
+    const desc = site?.description || t("public-cta-desc");
     document.title = title;
     setMeta("description", desc);
     setMeta("og:title", title, true);
     setMeta("og:description", desc, true);
-  }, [site, t]);
+  }, [site, selected, t]);
 
-  const byCreatedDesc = (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   const authorName = (acc: any) => acc?.nickname || acc?.name || t("anonymous");
 
   // Open a note and reflect it in the URL so the view is shareable and survives reload.
@@ -119,26 +171,65 @@ const PublicHome = observer(() => {
     setSearchParams({ note: String(note.id) });
   };
 
-  const loadPage = async (p: number) => {
-    const list = await api.notes.publicList.mutate({ page: p, size: PAGE_SIZE });
-    const sorted = (p === 1 ? list : [...notes, ...list]).slice().sort(byCreatedDesc);
-    setNotes(sorted);
-    setHasMore(list.length === PAGE_SIZE);
-    setPage(p);
-    if (p === 1 && sorted.length) {
-      const deepLinked = sorted.find((n) => String(n.id) === searchParams.get("note"));
-      if (deepLinked) setSelected(deepLinked);
-      else if (isPc) setSelected(sorted[0]);
-    }
-    setLoading(false);
+  // Open by id, fetching it when it isn't in the loaded page (deep link,
+  // random, on-this-day, heatmap, prev/next beyond the loaded range).
+  const openById = async (id: number) => {
+    const note = notes.find((n) => n.id === id) ?? (await api.notes.publicNoteById.query({ id }).catch(() => null));
+    if (note) selectNote(note);
   };
 
+  // Server-side filtering/search/paging; a sequence number drops stale responses
+  // when the filter changes while a request is in flight.
+  const reqSeq = useRef(0);
+  const loadPage = async (p: number) => {
+    const seq = ++reqSeq.current;
+    const list = await api.notes.publicList.mutate({
+      page: p,
+      size: PAGE_SIZE,
+      orderBy: "created",
+      searchText: debouncedSearch,
+      ...(authorFilter != null && { accountId: authorFilter }),
+    });
+    if (seq !== reqSeq.current) return list;
+    setNotes((prev) => (p === 1 ? list : [...prev, ...list.filter((n) => !prev.some((x) => x.id === n.id))]));
+    setHasMore(list.length === PAGE_SIZE);
+    setPage(p);
+    setLoading(false);
+    return list;
+  };
+
+  const initialized = useRef(false);
   useEffect(() => {
-    loadPage(1);
-  }, []);
+    setLoading(true);
+    loadPage(1).then((list) => {
+      if (initialized.current) return;
+      initialized.current = true;
+      const deepLinkId = Number(searchParams.get("note"));
+      if (deepLinkId) openById(deepLinkId);
+      else if (isPc && list.length) setSelected(list[0]);
+    });
+  }, [authorFilter, debouncedSearch]);
+
+  // A newly opened note starts at its top, not at the previous note's scroll offset.
+  useEffect(() => {
+    const root = document.querySelector("[data-reader-content]")?.closest(".scroll-area") as HTMLElement | null;
+    root?.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+  }, [selected?.id]);
+
+  const openRandom = () => {
+    const pool = scopedPosts.filter((p) => p.id !== selected?.id);
+    if (pool.length) openById(pool[Math.floor(Math.random() * pool.length)].id);
+  };
 
   const authButtons = (
     <div className="flex items-center gap-2">
+      {scopedPosts.length > 1 && (
+        <Tooltip content={t("random-note")} placement="bottom" closeDelay={0}>
+          <Button size="sm" radius="full" variant="light" isIconOnly aria-label={t("random-note")} onPress={openRandom}>
+            <Icon icon="tabler:dice-5" width="20" height="20" />
+          </Button>
+        </Tooltip>
+      )}
       <Tooltip content={t("github-cta")} placement="bottom" closeDelay={0}>
         <Button size="sm" radius="full" variant="light" isIconOnly aria-label={t("github-cta")} onPress={() => window.open(GITHUB_URL, "_blank", "noopener")}>
           <Icon icon="tabler:brand-github" width="20" height="20" />
@@ -181,10 +272,49 @@ const PublicHome = observer(() => {
     </div>
   );
 
-  // 下 (fixed): GitHub-style contributor wall. Click an avatar to filter the list
-  // to that author; most-active contributors come first, the host gets a crown.
+  // Writing heatmap for the last HEATMAP_WEEKS weeks (Sunday-start columns,
+  // today in the last one). Click a day to open its latest note.
+  const heatmapDays = useMemo(() => {
+    const today = dayjs().startOf("day");
+    const start = today.subtract((HEATMAP_WEEKS - 1) * 7 + today.day(), "day");
+    return Array.from({ length: HEATMAP_WEEKS * 7 }, (_, i) => {
+      const d = start.add(i, "day");
+      const key = d.format("YYYY-MM-DD");
+      return { key, future: d.isAfter(today), ...(dayBuckets.get(key) ?? { count: 0, latestId: 0 }) };
+    });
+  }, [dayBuckets]);
+  const heatmapTotal = heatmapDays.reduce((s, d) => s + d.count, 0);
+  const heatColor = (c: number) =>
+    c === 0 ? "bg-hover" : c === 1 ? "bg-primary/30" : c === 2 ? "bg-primary/55" : c <= 4 ? "bg-primary/80" : "bg-primary";
+
+  const heatmap = isPc && stats && (
+    <div className="mb-3">
+      <div className="text-xs text-desc mb-1.5">{t("heatmap-title", { count: heatmapTotal })}</div>
+      <div
+        className="grid grid-flow-col gap-[2px]"
+        style={{ gridTemplateRows: "repeat(7, minmax(0, 1fr))", gridTemplateColumns: `repeat(${HEATMAP_WEEKS}, minmax(0, 1fr))` }}
+      >
+        {heatmapDays.map((d) =>
+          d.future ? (
+            <div key={d.key} />
+          ) : (
+            <div
+              key={d.key}
+              title={t("heatmap-day", { date: d.key, count: d.count })}
+              onClick={() => d.latestId && openById(d.latestId)}
+              className={`aspect-square rounded-[2px] ${heatColor(d.count)} ${d.count ? "cursor-pointer hover:ring-1 hover:ring-primary" : ""}`}
+            />
+          ),
+        )}
+      </div>
+    </div>
+  );
+
+  // 下 (fixed): activity heatmap + GitHub-style contributor wall. Click an avatar
+  // to filter everything to that author; most-active first, the host gets a crown.
   const contributorWall = authors.length > 0 && (
     <div className="shrink-0 border-t border-hover p-3">
+      {heatmap}
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs text-desc">{t("plaza-participants", { count: authors.length })}</span>
         {authorFilter != null && (
@@ -231,7 +361,7 @@ const PublicHome = observer(() => {
           <UserAvatar account={{ image: note.account?.image }} guestName={authorName(note.account)} size={16} />
           <span className="truncate max-w-[110px]">{authorName(note.account)}</span>
           <span>·</span>
-          <span className="shrink-0">{dayjs(note.createdAt).format("YYYY-MM-DD")}</span>
+          <span className="shrink-0">{dayjs(note.createdAt).format("MM-DD")}</span>
         </div>
       </div>
     );
@@ -243,8 +373,28 @@ const PublicHome = observer(() => {
     <div className="flex flex-col flex-1 min-h-0">
       {plazaHeader}
       <ScrollArea className="flex-1 min-h-0" onBottom={() => hasMore && loadPage(page + 1)}>
-        <LoadingAndEmpty isLoading={loading} isEmpty={!loading && displayedNotes.length === 0} />
-        {displayedNotes.map(noteRow)}
+        {onThisDay.length > 0 && !debouncedSearch && (
+          <button
+            onClick={() => openById(onThisDay[0].id)}
+            className="w-full flex items-center gap-2 px-4 py-2 text-left text-xs text-primary bg-primary/10 hover:bg-primary/15 border-b border-hover"
+          >
+            <Icon icon="tabler:calendar-heart" width="15" height="15" className="shrink-0" />
+            <span className="truncate">
+              {t("on-this-day", { years: dayjs().year() - dayjs(onThisDay[0].t).year(), count: onThisDay.length })}
+            </span>
+          </button>
+        )}
+        <LoadingAndEmpty isLoading={loading} isEmpty={!loading && notes.length === 0} />
+        {monthGroups.map((g) => (
+          <div key={g.key}>
+            <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-1.5 text-xs font-medium text-desc bg-background/90 backdrop-blur border-b border-hover">
+              <span>{dayjs(g.key + "-01").format(t("month-format"))}</span>
+              {/* Full-month total from the index; search results only know what's loaded. */}
+              <span className="font-normal">{debouncedSearch ? g.notes.length : monthCounts.get(g.key) ?? g.notes.length}</span>
+            </div>
+            {g.notes.map(noteRow)}
+          </div>
+        ))}
         {hasMore && (
           <div className="p-3 flex justify-center">
             <Button size="sm" variant="light" onPress={() => loadPage(page + 1)}>
@@ -278,11 +428,41 @@ const PublicHome = observer(() => {
               <UserAvatar account={{ image: selected.account?.image }} guestName={authorName(selected.account)} size={28} />
               <div className="min-w-0">
                 <div className="text-sm font-medium truncate">{authorName(selected.account)}</div>
-                <div className="text-xs text-desc">{dayjs(selected.createdAt).format("YYYY-MM-DD HH:mm")}</div>
+                <div className="text-xs text-desc">
+                  {dayjs(selected.createdAt).format("YYYY-MM-DD HH:mm")}
+                  {" · "}
+                  {t("reading-time", readingStats(selected.content))}
+                </div>
               </div>
             </div>
             <ReaderBody note={selected} blinko={blinko} />
           </div>
+          {(newerId || olderId) && (
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {[
+                { id: newerId, label: t("prev-note"), icon: "tabler:arrow-left", align: "items-start" },
+                { id: olderId, label: t("next-note"), icon: "tabler:arrow-right", align: "items-end" },
+              ].map(({ id, label, icon, align }) => {
+                const loaded = id ? notes.find((n) => n.id === id) : null;
+                return id ? (
+                  <button
+                    key={label}
+                    onClick={() => openById(id)}
+                    className={`flex flex-col ${align} gap-1 min-w-0 bg-background rounded-2xl px-4 py-3 hover:bg-hover transition-colors`}
+                  >
+                    <span className="flex items-center gap-1 text-xs text-desc">
+                      {icon === "tabler:arrow-left" && <Icon icon={icon} width="13" height="13" />}
+                      {label}
+                      {icon === "tabler:arrow-right" && <Icon icon={icon} width="13" height="13" />}
+                    </span>
+                    {loaded && <span className="text-sm font-medium truncate max-w-full">{getTitle(loaded.content) || t("untitled")}</span>}
+                  </button>
+                ) : (
+                  <div key={label} />
+                );
+              })}
+            </div>
+          )}
           {ctaCard}
           <div className="h-10" />
         </div>

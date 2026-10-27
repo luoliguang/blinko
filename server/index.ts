@@ -36,6 +36,8 @@ import mcpRouter from './routerExpress/mcp';
 
 // Vite integration
 import ViteExpress from 'vite-express';
+import { prisma } from './prisma';
+import { injectNoteMeta, noteTitleAndSummary, publicNoteWhere } from './lib/publicNotes';
 
 // Process error handling
 process.on('uncaughtException', (error) => {
@@ -293,6 +295,24 @@ async function bootstrap() {
     };
 
     const publicPath = path.resolve(appRootProd, 'public');
+
+    // Shared plaza links (/?note=123): serve the SPA shell with that note's
+    // title/summary so link previews show the article, not the generic site.
+    app.get('/', async (req, res, next) => {
+      const id = Number(req.query.note);
+      const indexFile = path.join(publicPath, 'index.html');
+      if (!Number.isInteger(id) || id <= 0 || !fs.existsSync(indexFile)) return next();
+      try {
+        const note = await prisma.notes.findFirst({ where: { ...publicNoteWhere(), id }, select: { content: true } });
+        if (!note) return next();
+        const { title, summary } = noteTitleAndSummary(note.content);
+        const html = injectNoteMeta(fs.readFileSync(indexFile, 'utf8'), title || 'Blinko', summary || title);
+        res.set({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' }).send(html);
+      } catch {
+        next();
+      }
+    });
+
     app.use(express.static(publicPath, staticOptions));
 
     // Add body parsers for JSON and form data

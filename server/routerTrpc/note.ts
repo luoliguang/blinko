@@ -8,6 +8,7 @@ import { NoteType } from '../../shared/lib/types';
 import { attachmentsSchema, historySchema, notesSchema, tagSchema, tagsToNoteSchema, commentsSchema } from '@shared/lib/prismaZodType';
 import { getGlobalConfig } from './config';
 import { FileService } from '../lib/files';
+import { publicNoteInclude, publicNoteWhere } from '../lib/publicNotes';
 import { AiService } from '@server/aiServer';
 import { SendWebhook } from '@server/lib/helper';
 import { Context } from '../context';
@@ -340,6 +341,9 @@ export const noteRouter = router({
         page: z.number().optional().default(1),
         size: z.number().optional().default(30),
         searchText: z.string().optional().default(''),
+        // Plaza-only extras; defaults keep the hub / other-site callers unchanged.
+        accountId: z.number().optional(),
+        orderBy: z.enum(['updated', 'created']).optional().default('updated'),
       }),
     )
     .output(
@@ -371,40 +375,62 @@ export const noteRouter = router({
       ),
     )
     .mutation(async function ({ input }) {
+      // Key by the full input: a fixed key served page 1 for every page/search.
       return cache.wrap(
-        '/v1/note/public-list',
+        `/v1/note/public-list:${JSON.stringify(input)}`,
         async () => {
-          const { page, size, searchText } = input;
+          const { page, size, searchText, accountId, orderBy } = input;
           return await prisma.notes.findMany({
             where: {
-              isShare: true,
-              sharePassword: '',
-              OR: [{ shareExpiryDate: { gt: new Date() } }, { shareExpiryDate: null }],
+              ...publicNoteWhere(),
+              ...(accountId != null && { accountId }),
               ...(searchText != '' && { content: { contains: searchText, mode: 'insensitive' } }),
             },
-            orderBy: [{ isTop: 'desc' }, { updatedAt: 'desc' }],
+            orderBy: orderBy === 'created' ? [{ createdAt: 'desc' }] : [{ isTop: 'desc' }, { updatedAt: 'desc' }],
             skip: (page - 1) * size,
             take: size,
-            include: {
-              tags: { include: { tag: true } },
-              account: {
-                select: {
-                  image: true,
-                  nickname: true,
-                  name: true,
-                  id: true,
-                },
-              },
-              attachments: true,
-              _count: {
-                select: {
-                  comments: true,
-                },
-              },
-            },
+            include: publicNoteInclude,
           });
         },
         { ttl: 1000 * 5 },
+      );
+    }),
+  // One public note by id, for plaza deep links / random / prev-next to notes
+  // that aren't in the loaded page.
+  publicNoteById: publicProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async function ({ input }) {
+      return await prisma.notes.findFirst({
+        where: { ...publicNoteWhere(), id: input.id },
+        include: publicNoteInclude,
+      });
+    }),
+  // Lightweight index of every public note (id, time, author) plus author
+  // profiles. Drives the plaza's contributor counts, month counts, activity
+  // heatmap, random pick, on-this-day and prev/next independently of paging.
+  publicPlazaStats: publicProcedure
+    .input(z.void())
+    .query(async function () {
+      return cache.wrap(
+        '/v1/note/public-plaza-stats',
+        async () => {
+          const rows = await prisma.notes.findMany({
+            where: publicNoteWhere(),
+            orderBy: { createdAt: 'desc' },
+            take: 5000,
+            select: { id: true, createdAt: true, accountId: true },
+          });
+          const ids = [...new Set(rows.map((r) => r.accountId).filter((a): a is number => a != null))];
+          const accounts = await prisma.accounts.findMany({
+            where: { id: { in: ids } },
+            select: { id: true, name: true, nickname: true, image: true },
+          });
+          return {
+            posts: rows.map((r) => ({ id: r.id, t: r.createdAt.getTime(), a: r.accountId ?? 0 })),
+            authors: accounts,
+          };
+        },
+        { ttl: 1000 * 30 },
       );
     }),
   listByIds: authProcedure
