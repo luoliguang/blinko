@@ -430,20 +430,40 @@ const PublicHome = observer(() => {
         {authors.map((a) => {
           const isActive = authorFilter === a.id;
           const isHost = site?.id != null && a.id === site.id;
+          // Hover card: avatar, name (+ host badge), post count and what a click does.
+          const card = (
+            <div className="flex items-center gap-2.5 px-1 py-1.5 max-w-[220px]">
+              <UserAvatar account={{ image: a.image }} guestName={a.name} size={34} />
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-semibold truncate">{a.name}</span>
+                  {isHost && (
+                    <span className="shrink-0 flex items-center gap-0.5 rounded-full bg-warning/15 text-warning px-1.5 text-[10px] leading-4">
+                      <Icon icon="tabler:crown" width="10" height="10" />
+                      {t("host-badge")}
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-desc mt-0.5">{t("author-post-count", { count: a.count })}</div>
+                <div className="text-[11px] text-primary mt-1">{isActive ? t("author-filter-clear") : t("author-filter-only")}</div>
+              </div>
+            </div>
+          );
           return (
-            <button
-              key={a.id}
-              onClick={() => setAuthorFilter(isActive ? null : a.id)}
-              title={t("author-post-count", { name: a.name, count: a.count })}
-              className={`relative shrink-0 rounded-full transition-transform hover:scale-110 ${isActive ? "ring-2 ring-primary ring-offset-1 ring-offset-background" : ""}`}
-            >
-              <UserAvatar account={{ image: a.image }} guestName={a.name} size={28} />
-              {isHost && (
-                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-background flex items-center justify-center">
-                  <Icon icon="tabler:crown" width="10" height="10" className="text-warning" />
-                </span>
-              )}
-            </button>
+            <Tooltip key={a.id} content={card} placement="top" delay={150} closeDelay={0}>
+              <button
+                onClick={() => setAuthorFilter(isActive ? null : a.id)}
+                aria-label={a.name}
+                className={`relative shrink-0 rounded-full transition-transform hover:scale-110 ${isActive ? "ring-2 ring-primary ring-offset-1 ring-offset-background" : ""}`}
+              >
+                <UserAvatar account={{ image: a.image }} guestName={a.name} size={28} />
+                {isHost && (
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-background flex items-center justify-center">
+                    <Icon icon="tabler:crown" width="10" height="10" className="text-warning" />
+                  </span>
+                )}
+              </button>
+            </Tooltip>
           );
         })}
       </div>
