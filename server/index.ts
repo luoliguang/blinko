@@ -199,12 +199,16 @@ async function setupApiRoutes(app: express.Application) {
   // Special handling for lute.min.js with gzip compression
   serveVditorFile('/dist/js/lute/lute.min.js', './lute.min.js');
   
+  // Vditor's default toolbar icon set. The app injects its own icons (see
+  // useEditor), so answer with an empty script instead of 404ing. This used to
+  // send the 4MB lute.min.js, which Vditor fetched synchronously.
   app.use('/dist/js/icons/ant.js', (req, res) => {
     res.set({
+      'Content-Type': 'application/javascript; charset=utf-8',
       'Cache-Control': 'public, max-age=604800, immutable',
       'Expires': new Date(Date.now() + 604800000).toUTCString()
     });
-    res.sendFile(path.resolve(__dirname, './lute.min.js'));
+    res.send('');
   });
 
   // Serve vditor dependencies from local files

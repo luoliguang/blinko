@@ -373,6 +373,17 @@ export const useEditorInit = (
       document.head.appendChild(script);
     }
 
+    // Vditor loads its toolbar icon set via a *synchronous* XHR
+    // (`/dist/js/icons/ant.js`, id "vditorIconScript"), which blocks the page and
+    // triggers Chrome's "Synchronous XMLHttpRequest" deprecation warning. We
+    // inject the icons ourselves above, so claim that id up front; Vditor skips
+    // the load when an element with it already exists.
+    if (!document.getElementById('vditorIconScript')) {
+      const placeholder = document.createElement('script');
+      placeholder.id = 'vditorIconScript';
+      document.head.appendChild(placeholder);
+    }
+
     // Use currentTheme from useTheme hook, fallback to UserStore if not ready
     const theme = currentTheme || RootStore.Get(UserStore).theme || 'light';
     const cdn = getBlinkoEndpoint('').replace(/\/$/, "");
