@@ -35,6 +35,8 @@ function readingStats(content?: string) {
 
 const HEATMAP_WEEKS = 26;
 
+type ReadMode = "normal" | "light" | "full";
+
 function setMeta(name: string, content: string, property = false) {
   const attr = property ? "property" : "name";
   let el = document.head.querySelector(`meta[${attr}="${name}"]`) as HTMLMetaElement | null;
@@ -68,6 +70,15 @@ const PublicHome = observer(() => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [authorFilter, setAuthorFilter] = useState<number | null>(null);
+  // Reading mode (desktop): "normal" full layout, "light" keeps only the note-title
+  // list on the left (hides the widgets), "full" collapses the left entirely.
+  // light + full share the enhanced TOC, progress bar and larger article type.
+  const [readMode, setReadMode] = useState<ReadMode>(() => {
+    const v = localStorage.getItem("plaza-readmode");
+    return v === "light" || v === "full" ? v : "normal";
+  });
+  const focused = readMode !== "normal";
+  const [progress, setProgress] = useState(0);
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebounceValue(search.trim(), 350);
   const [activeHeading, setActiveHeading] = useState(0);
@@ -216,13 +227,74 @@ const PublicHome = observer(() => {
     root?.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   }, [selected?.id]);
 
+  // Reading progress (0–100) of the open article, for the focus-mode progress
+  // bar and TOC percentage. Polls because the markdown renders asynchronously.
+  useEffect(() => {
+    setProgress(0);
+    if (!selected) return;
+    let root: HTMLElement | null = null;
+    let onScroll: (() => void) | null = null;
+    let tries = 0;
+    const poll = setInterval(() => {
+      tries++;
+      const el = document.querySelector("[data-reader-content]")?.closest(".scroll-area") as HTMLElement | null;
+      if (el) {
+        clearInterval(poll);
+        root = el;
+        onScroll = () => {
+          const max = root!.scrollHeight - root!.clientHeight;
+          setProgress(max > 2 ? Math.min(100, Math.round((root!.scrollTop / max) * 100)) : 100);
+        };
+        root.addEventListener("scroll", onScroll, { passive: true });
+        onScroll();
+      } else if (tries > 25) clearInterval(poll);
+    }, 100);
+    return () => {
+      clearInterval(poll);
+      if (root && onScroll) root.removeEventListener("scroll", onScroll);
+    };
+  }, [selected?.id]);
+
+  // Remember the reading mode across reloads, and let Esc return to normal.
+  useEffect(() => {
+    localStorage.setItem("plaza-readmode", readMode);
+    if (!focused) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setReadMode("normal");
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [readMode, focused]);
+
   const openRandom = () => {
     const pool = scopedPosts.filter((p) => p.id !== selected?.id);
     if (pool.length) openById(pool[Math.floor(Math.random() * pool.length)].id);
   };
 
+  // Three-way reading-mode switch (desktop, when a note is open).
+  const modeToggle = isPc && selected && (
+    <div className="flex items-center gap-0.5 rounded-full bg-hover p-0.5">
+      {([
+        ["normal", "tabler:layout-sidebar-left-expand", t("mode-normal")],
+        ["light", "tabler:list", t("mode-light")],
+        ["full", "tabler:book", t("mode-full")],
+      ] as const).map(([m, icon, label]) => (
+        <Tooltip key={m} content={label} placement="bottom" closeDelay={0}>
+          <button
+            aria-label={label}
+            onClick={() => setReadMode(m)}
+            className={`w-7 h-7 flex items-center justify-center rounded-full transition-colors ${
+              readMode === m ? "bg-background text-primary shadow-sm" : "text-desc hover:text-foreground"
+            }`}
+          >
+            <Icon icon={icon} width="17" height="17" />
+          </button>
+        </Tooltip>
+      ))}
+    </div>
+  );
+
   const authButtons = (
     <div className="flex items-center gap-2">
+      {modeToggle}
       {scopedPosts.length > 1 && (
         <Tooltip content={t("random-note")} placement="bottom" closeDelay={0}>
           <Button size="sm" radius="full" variant="light" isIconOnly aria-label={t("random-note")} onPress={openRandom}>
@@ -244,6 +316,24 @@ const PublicHome = observer(() => {
     </div>
   );
 
+  // Reusable search box (shared by the full and the light-mode header).
+  const searchBox = (
+    <div className="flex items-center gap-2 bg-hover rounded-lg px-2.5 h-8">
+      <Icon icon="tabler:search" width="15" height="15" className="text-desc shrink-0" />
+      <input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder={t("search-notes-placeholder")}
+        className="bg-transparent outline-none text-xs w-full placeholder:text-desc"
+      />
+      {search && (
+        <button onClick={() => setSearch("")} aria-label={t("clear")} className="shrink-0 text-desc hover:text-foreground">
+          <Icon icon="tabler:x" width="14" height="14" />
+        </button>
+      )}
+    </div>
+  );
+
   // 上 (fixed): plaza intro.
   const plazaHeader = (
     <div className="shrink-0 p-4 border-b border-hover">
@@ -255,20 +345,7 @@ const PublicHome = observer(() => {
         </div>
       </div>
       <div className="text-xs text-desc leading-relaxed mt-2 line-clamp-2">{site?.description || t("plaza-welcome")}</div>
-      <div className="mt-3 flex items-center gap-2 bg-hover rounded-lg px-2.5 h-8">
-        <Icon icon="tabler:search" width="15" height="15" className="text-desc shrink-0" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={t("search-notes-placeholder")}
-          className="bg-transparent outline-none text-xs w-full placeholder:text-desc"
-        />
-        {search && (
-          <button onClick={() => setSearch("")} aria-label={t("clear")} className="shrink-0 text-desc hover:text-foreground">
-            <Icon icon="tabler:x" width="14" height="14" />
-          </button>
-        )}
-      </div>
+      <div className="mt-3">{searchBox}</div>
     </div>
   );
 
@@ -367,13 +444,27 @@ const PublicHome = observer(() => {
     );
   };
 
-  // Three-section left panel: fixed intro (top), scrolling note list (middle),
-  // fixed contributor wall (bottom).
-  const listPanel = (
+  // Slim header for light mode: plaza name + exit shortcut, and the search box
+  // (dropped only the description/widgets), so the note titles get the room.
+  const compactHeader = (
+    <div className="shrink-0 px-4 py-3 border-b border-hover">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-bold truncate">{t("public-plaza-title")}</span>
+        <button onClick={() => setReadMode("normal")} className="shrink-0 text-desc hover:text-foreground" aria-label={t("mode-normal")}>
+          <Icon icon="tabler:layout-sidebar-left-expand" width="16" height="16" />
+        </button>
+      </div>
+      <div className="mt-2.5">{searchBox}</div>
+    </div>
+  );
+
+  // Left panel. In "light" mode it is stripped to just the note-title list
+  // (no search, on-this-day, heatmap or contributor wall).
+  const renderList = (compact: boolean) => (
     <div className="flex flex-col flex-1 min-h-0">
-      {plazaHeader}
+      {compact ? compactHeader : plazaHeader}
       <ScrollArea className="flex-1 min-h-0" onBottom={() => hasMore && loadPage(page + 1)}>
-        {onThisDay.length > 0 && !debouncedSearch && (
+        {!compact && onThisDay.length > 0 && !debouncedSearch && (
           <button
             onClick={() => openById(onThisDay[0].id)}
             className="w-full flex items-center gap-2 px-4 py-2 text-left text-xs text-primary bg-primary/10 hover:bg-primary/15 border-b border-hover"
@@ -403,7 +494,7 @@ const PublicHome = observer(() => {
           </div>
         )}
       </ScrollArea>
-      {contributorWall}
+      {!compact && contributorWall}
     </div>
   );
 
@@ -422,7 +513,11 @@ const PublicHome = observer(() => {
   const readerPanel = (
     <ScrollArea className="flex-1 px-4 md:px-8 py-4">
       {selected ? (
-        <div className="max-w-3xl mx-auto">
+        <div
+          className={`max-w-3xl mx-auto ${
+            focused ? "[&_.markdown-body]:!text-[17px] [&_.markdown-body]:!leading-[1.85]" : ""
+          }`}
+        >
           <div className="bg-background rounded-2xl p-4 md:p-6">
             <div className="flex items-center gap-2 mb-4">
               <UserAvatar account={{ image: selected.account?.image }} guestName={authorName(selected.account)} size={28} />
@@ -483,27 +578,44 @@ const PublicHome = observer(() => {
     }
   };
 
-  // Right-side table of contents for the open article (desktop only).
+  // Right-side table of contents for the open article (desktop only). In focus
+  // mode it becomes the reading companion: wider, larger, with a progress read-out
+  // and the article title as a header.
   const tocPanel = (
-    <div className="w-[200px] shrink-0 border-l border-hover p-4 overflow-y-auto hide-scrollbar">
-      <div className="flex items-center gap-1.5 text-xs text-desc mb-3">
-        <Icon icon="tabler:list" width="14" height="14" />
+    <div
+      className={`shrink-0 border-l border-hover overflow-y-auto hide-scrollbar transition-[width] duration-300 ${
+        focused ? "w-[280px] p-5" : "w-[200px] p-4"
+      }`}
+    >
+      {focused && (
+        <div className="text-sm font-bold mb-1 line-clamp-2 leading-snug">{getTitle(selected?.content) || t("untitled")}</div>
+      )}
+      <div className="flex items-center gap-1.5 text-desc mb-3 text-xs">
+        <Icon icon="tabler:list" width={focused ? 15 : 14} height={focused ? 15 : 14} />
         {t("toc-title")}
+        {focused && <span className="ml-auto tabular-nums text-primary font-medium">{progress}%</span>}
       </div>
-      <div className="flex flex-col">
-        {toc.map((h, i) => (
-          <button
-            key={i}
-            onClick={() => { setActiveHeading(i); scrollToHeading(i); }}
-            style={{ paddingLeft: `${(h.level - 1) * 12 + 8}px` }}
-            title={h.text}
-            className={`text-left text-xs leading-snug py-1 border-l-2 truncate transition-colors ${
-              activeHeading === i ? "border-primary text-primary" : "border-transparent text-desc hover:text-foreground"
-            }`}
-          >
-            {h.text}
-          </button>
-        ))}
+      <div className={`flex flex-col ${focused ? "gap-0.5" : ""}`}>
+        {toc.map((h, i) => {
+          const active = activeHeading === i;
+          return (
+            <button
+              key={i}
+              onClick={() => { setActiveHeading(i); scrollToHeading(i); }}
+              style={{ paddingLeft: `${(h.level - 1) * 12 + (focused ? 12 : 8)}px` }}
+              title={h.text}
+              className={`text-left leading-snug truncate border-l-2 transition-colors ${
+                focused ? "text-sm py-1.5 pr-2 rounded-r-md" : "text-xs py-1"
+              } ${
+                active
+                  ? `border-primary text-primary ${focused ? "font-medium bg-primary/10" : ""}`
+                  : "border-transparent text-desc hover:text-foreground"
+              }`}
+            >
+              {h.text}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -557,8 +669,24 @@ const PublicHome = observer(() => {
 
         {isPc ? (
           <div className="flex-1 flex min-h-0 w-full">
-            <div className="w-[300px] shrink-0 flex flex-col border-r border-hover bg-background">{listPanel}</div>
-            {readerPanel}
+            {/* Left list collapses in focus mode; inner keeps its 300px so the
+                content slides out cleanly instead of reflowing. */}
+            <div
+              className={`shrink-0 overflow-hidden bg-background transition-[width] duration-300 ${
+                readMode === "full" ? "w-0 border-r-0" : "w-[300px] border-r border-hover"
+              }`}
+            >
+              <div className="w-[300px] h-full flex flex-col">{renderList(readMode === "light")}</div>
+            </div>
+            {/* Focus mode gets a slim reading-progress bar above the article. */}
+            <div className="flex-1 flex flex-col min-h-0">
+              {focused && selected && (
+                <div className="h-0.5 shrink-0 bg-hover">
+                  <div className="h-full bg-primary transition-[width] duration-150" style={{ width: `${progress}%` }} />
+                </div>
+              )}
+              {readerPanel}
+            </div>
             {selected && toc.length > 0 && tocPanel}
           </div>
         ) : (
@@ -574,7 +702,7 @@ const PublicHome = observer(() => {
                 {readerPanel}
               </>
             ) : (
-              listPanel
+              renderList(false)
             )}
           </div>
         )}
