@@ -3,6 +3,7 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useDebounceValue, useMediaQuery } from "usehooks-ts";
+import { useTheme } from "next-themes";
 import { Button, Tooltip } from "@heroui/react";
 import { api } from "@/lib/trpc";
 import { helper } from "@/lib/helper";
@@ -11,6 +12,7 @@ import { NoteContent } from "@/components/BlinkoCard/noteContent";
 import { UserAvatar } from "@/components/BlinkoCard/commentButton";
 import { RootStore } from "@/store";
 import { BlinkoStore } from "@/store/blinkoStore";
+import { UserStore } from "@/store/user";
 import { ScrollArea } from "@/components/Common/ScrollArea";
 import { LoadingAndEmpty } from "@/components/Common/LoadingAndEmpty";
 import { Icon } from "@/components/Common/Iconify/icons";
@@ -62,6 +64,17 @@ const PublicHome = observer(() => {
   const [searchParams, setSearchParams] = useSearchParams();
   const isPc = useMediaQuery("(min-width: 768px)");
   const blinko = RootStore.Get(BlinkoStore);
+  const { resolvedTheme, setTheme } = useTheme();
+
+  // Visitor light/dark switch. Saved to the same `userTheme` key the app reads
+  // at startup, so the choice sticks across reloads (and into the app after login,
+  // until the account's own theme setting takes over).
+  const toggleTheme = () => {
+    const next = resolvedTheme === "dark" ? "light" : "dark";
+    setTheme(next);
+    localStorage.setItem("userTheme", next);
+    RootStore.Get(UserStore).updatePWAColor(next);
+  };
 
   const [site, setSite] = useState<{ id?: number; name?: string; image?: string; description?: string } | null>(null);
   const [notes, setNotes] = useState<any[]>([]);
@@ -302,6 +315,18 @@ const PublicHome = observer(() => {
           </Button>
         </Tooltip>
       )}
+      <Tooltip content={resolvedTheme === "dark" ? t("light-mode") : t("dark-mode")} placement="bottom" closeDelay={0}>
+        <Button
+          size="sm"
+          radius="full"
+          variant="light"
+          isIconOnly
+          aria-label={resolvedTheme === "dark" ? t("light-mode") : t("dark-mode")}
+          onPress={toggleTheme}
+        >
+          <Icon icon={resolvedTheme === "dark" ? "tabler:sun" : "tabler:moon"} width="20" height="20" />
+        </Button>
+      </Tooltip>
       <Tooltip content={t("github-cta")} placement="bottom" closeDelay={0}>
         <Button size="sm" radius="full" variant="light" isIconOnly aria-label={t("github-cta")} onPress={() => window.open(GITHUB_URL, "_blank", "noopener")}>
           <Icon icon="tabler:brand-github" width="20" height="20" />
@@ -478,7 +503,9 @@ const PublicHome = observer(() => {
         <LoadingAndEmpty isLoading={loading} isEmpty={!loading && notes.length === 0} />
         {monthGroups.map((g) => (
           <div key={g.key}>
-            <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-1.5 text-xs font-medium text-desc bg-background/90 backdrop-blur border-b border-hover">
+            {/* z-20 + opaque: HeroUI avatar images carry `relative z-10`, which
+                would otherwise paint over this sticky header while scrolling. */}
+            <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-1.5 text-xs font-medium text-desc bg-background border-b border-hover">
               <span>{dayjs(g.key + "-01").format(t("month-format"))}</span>
               {/* Full-month total from the index; search results only know what's loaded. */}
               <span className="font-normal">{debouncedSearch ? g.notes.length : monthCounts.get(g.key) ?? g.notes.length}</span>
@@ -662,7 +689,9 @@ const PublicHome = observer(() => {
         <div className="flex items-center justify-between px-4 md:px-6 h-14 shrink-0 bg-background border-b border-hover">
           <div className="flex items-center gap-2 min-w-0">
             <img src="/logo.png" alt="Blinko" className="w-7 h-7 rounded-lg" onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
-            <span className="font-bold truncate">{t("public-plaza-title")}</span>
+            {/* Phones: the header is full of buttons and the plaza intro below
+                already shows the title, so keep just the logo here. */}
+            <span className="hidden md:inline font-bold truncate">{t("public-plaza-title")}</span>
           </div>
           {authButtons}
         </div>
