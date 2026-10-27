@@ -14,6 +14,15 @@ interface NoteContentProps {
 }
 
 export const NoteContent = observer(({ blinkoItem, blinko, isExpanded, isShareMode, isReadOnly }: NoteContentProps) => {
+  // Images embedded in the body are also linked as attachments (so they're
+  // cleaned up with the note), but they're already shown inline — don't repeat
+  // them in the bottom attachment strip. Match both markdown (](path)) and the
+  // aligned html form (src="path").
+  const content = blinkoItem.content ?? '';
+  const isInlineReferenced = (path: string) =>
+    !!path && (content.includes(`](${path})`) || content.includes(`src="${path}"`) || content.includes(`src='${path}'`));
+  const attachments = (blinkoItem.attachments ?? []).filter((a) => !isInlineReferenced(a.path));
+
   return (
     <>
       <MarkdownRender
@@ -27,8 +36,8 @@ export const NoteContent = observer(({ blinkoItem, blinko, isExpanded, isShareMo
         largeSpacing={isShareMode || isExpanded}
       />
       <ReferencesContent blinkoItem={blinkoItem} className={`${isExpanded ? 'my-4' : 'my-2'}`} />
-      <div className={blinkoItem.attachments?.length != 0 ? 'my-2' : ''}>
-        <FilesAttachmentRender files={blinkoItem.attachments ?? []} preview />
+      <div className={attachments.length != 0 ? 'my-2' : ''}>
+        <FilesAttachmentRender files={attachments} preview />
       </div>
     </>
   );
