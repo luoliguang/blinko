@@ -199,7 +199,9 @@ export const MarkdownRender = observer(({ content = '', onChange, isShareMode, l
               }
               return <li className={className}>{children}</li>;
             },
-            img: ImageWrapper,
+            img: (props) => (
+              <ImageWrapper {...props} content={content} onChange={onChange} editable={!isShareMode && !!onChange} />
+            ),
             table: TableWrapper
           }}
         >

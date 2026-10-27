@@ -11,6 +11,7 @@ import { PassThrough } from 'stream';
 import { createWriteStream } from "fs";
 import pathIsInside from 'path-is-inside';
 import sanitizeFilename from 'sanitize-filename';
+import { createHash } from 'crypto';
 
 /**
  * Sanitize a filename for safe filesystem storage.
@@ -357,6 +358,18 @@ export class FileService {
     }
   }
 
+  // Find an already-stored file with identical content for this account, so
+  // repeatedly pasting/uploading the same image reuses one file instead of
+  // piling up duplicate copies and resource rows. metadata is a json column, so
+  // we match via the ->> operator in raw SQL (Prisma json-path filters need jsonb).
+  static async findDuplicateAttachment(accountId: number, hash: string): Promise<{ path: string; name: string } | null> {
+    const rows = await prisma.$queryRaw<{ path: string; name: string }[]>`
+      SELECT "path", "name" FROM "attachments"
+      WHERE "accountId" = ${accountId} AND metadata->>'hash' = ${hash}
+      LIMIT 1`;
+    return rows[0] ?? null;
+  }
+
   static async uploadFileStream(
     {
       stream, originalName, fileSize, type, accountId, metadata
@@ -364,6 +377,8 @@ export class FileService {
       stream: ReadableStream, originalName: string, fileSize: number, type: string, accountId: number, metadata?: any
     }) {
     const config = await getGlobalConfig({ useAdmin: true });
+    // Hash the content as it streams through, so identical uploads can be deduped.
+    const hash = createHash('sha256');
     const extension = path.extname(originalName);
     const rawBaseName = path.basename(originalName, extension);
     const baseName = sanitizeUploadFileName(rawBaseName);
@@ -384,12 +399,13 @@ export class FileService {
 
         const passThrough = new PassThrough();
         const nodeReadable = Readable.fromWeb(stream as any);
-        
+
         // Setup proper error handling
         nodeReadable.on('error', (err) => {
           passThrough.destroy(err);
         });
 
+        nodeReadable.on('data', (chunk) => hash.update(chunk));
         nodeReadable.pipe(passThrough);
 
         const upload = new Upload({
@@ -414,6 +430,19 @@ export class FileService {
         passThrough.destroy();
         nodeReadable.destroy();
         
+        // Identical content already stored for this account: drop the copy we
+        // just uploaded and reuse the existing file/resource row.
+        const digest = hash.digest('hex');
+        const duplicate = await FileService.findDuplicateAttachment(accountId, digest);
+        if (duplicate) {
+          try {
+            await s3ClientInstance.send(new DeleteObjectCommand({ Bucket: config.s3Bucket, Key: s3Key }));
+          } catch (error) {
+            console.warn('Failed to remove duplicate S3 object:', error);
+          }
+          return { filePath: duplicate.path, fileName: duplicate.name };
+        }
+
         const s3Url = `/api/s3file/${s3Key}`;
 
         await FileService.createAttachment({
@@ -422,7 +451,7 @@ export class FileService {
           size: fileSize,
           type,
           accountId,
-          metadata
+          metadata: { ...(metadata || {}), hash: digest }
         });
         return { filePath: s3Url, fileName: timestampedFileName };
 
@@ -439,6 +468,8 @@ export class FileService {
 
         const writeStream = createWriteStream(fullPath);
         const nodeReadable = Readable.fromWeb(stream as any);
+
+        nodeReadable.on('data', (chunk) => hash.update(chunk));
 
         // Setup proper error handling
         nodeReadable.on('error', (err) => {
@@ -464,6 +495,19 @@ export class FileService {
               reject(err);
             });
         });
+        // Identical content already stored for this account: delete the copy we
+        // just wrote and reuse the existing file/resource row.
+        const digest = hash.digest('hex');
+        const duplicate = await FileService.findDuplicateAttachment(accountId, digest);
+        if (duplicate) {
+          try {
+            await unlink(fullPath);
+          } catch (error: any) {
+            if (error?.code !== 'ENOENT') console.warn('Failed to remove duplicate file:', error);
+          }
+          return { filePath: duplicate.path, fileName: duplicate.name };
+        }
+
         await FileService.createAttachment({
           path: `/api/file/${relativePath}`,
           name: timestampedFileName,
@@ -471,7 +515,7 @@ export class FileService {
           type,
           noteId: null,
           accountId,
-          metadata
+          metadata: { ...(metadata || {}), hash: digest }
         });
         return {
           filePath: `/api/file/${relativePath}`,

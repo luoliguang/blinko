@@ -284,8 +284,28 @@ export class EditorStore {
     }))
     this.files.push(..._acceptedFiles)
     await Promise.all(_acceptedFiles.map(i => i.uploadPromise.call()))
+
+    // Images go straight into the note body as inline markdown so the note
+    // reads like an article; every other file type stays a bottom attachment.
+    // We insert after upload (we need the real path), then drop the image from
+    // this.files and the draft storage below so it is not also sent as an
+    // attachment.
+    const insertedImages = _acceptedFiles.filter(i => i.previewType === 'image' && i.uploadPromise.value)
+    if (insertedImages.length) {
+      // Each image gets its own block (blank line between) so the note reads
+      // like an article and multiple images stack vertically rather than
+      // crowding onto one line. Only add a leading blank line when there is
+      // already content, so an empty note does not start with blank lines.
+      const imageMarkdown = insertedImages.map(img => `![${img.name}](${img.uploadPromise.value})`).join('\n\n')
+      const hasContent = (this.vditor?.getValue() ?? '').trim() !== ''
+      this.vditor?.insertValue(`${hasContent ? '\n\n' : ''}${imageMarkdown}\n`)
+      this.onChange?.(this.vditor?.getValue() ?? '')
+      this.files = this.files.filter(f => !insertedImages.includes(f))
+    }
+
+    const attachmentFiles = _acceptedFiles.filter(i => !insertedImages.includes(i))
     if (this.mode == 'create') {
-      _acceptedFiles.map(i => ({
+      attachmentFiles.map(i => ({
         name: i.name,
         path: i.uploadPromise.value,
         type: uploadFileType?.[i.name],
@@ -294,7 +314,7 @@ export class EditorStore {
         RootStore.Get(BlinkoStore).createAttachmentsStorage.push(t)
       })
     } else {
-      _acceptedFiles.map(i => ({
+      attachmentFiles.map(i => ({
         name: i.name,
         path: i.uploadPromise.value,
         type: uploadFileType?.[i.name],
